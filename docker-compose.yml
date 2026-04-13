@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: tourops-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - tourops-net
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: tourops-keycloak
+    command:
+      - start-dev
+      - --import-realm
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/realm-tourops.json:/opt/keycloak/data/import/realm-tourops.json:ro
+    networks:
+      - tourops-net
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Api/Dockerfile
+    container_name: tourops-api
+    depends_on:
+      - postgres
+      - keycloak
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      KEYCLOAK__AUTHORITY: http://keycloak:8080/realms/${KEYCLOAK_REALM}
+      KEYCLOAK__AUDIENCE: ${KEYCLOAK_CLIENT_ID}
+    ports:
+      - "5000:5000"
+    networks:
+      - tourops-net
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: tourops-frontend
+    depends_on:
+      - api
+    environment:
+      API_BASE_URL: /api
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+    ports:
+      - "3000:3000"
+    networks:
+      - tourops-net
+
+networks:
+  tourops-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
