@@ -5,6 +5,7 @@ namespace AI.Forged.TourOps.Api.Models;
 public sealed class RateRequest
 {
     public Guid ProductId { get; set; }
+    public Guid? ProductRoomId { get; set; }
     public DateOnly SeasonStart { get; set; }
     public DateOnly SeasonEnd { get; set; }
     public PricingModel PricingModel { get; set; }
@@ -15,12 +16,25 @@ public sealed class RateRequest
     public decimal? ChildDiscount { get; set; }
     public decimal? SingleSupplement { get; set; }
     public int? Capacity { get; set; }
+    public string? ValidityPeriod { get; set; }
+    public string? ValidityPeriodDescription { get; set; }
+    public string? RateVariation { get; set; }
+    public string? RateTypeName { get; set; }
+    public string? RateBasis { get; set; }
+    public string? OccupancyType { get; set; }
+    public string? MealBasis { get; set; }
+    public string? MinimumStay { get; set; }
 }
 
 public sealed class RateResponse
 {
     public Guid Id { get; set; }
     public Guid ProductId { get; set; }
+    public Guid? ProductRoomId { get; set; }
+    public string? ProductRoomName { get; set; }
+    public bool IsActive { get; set; }
+    public Guid? PreviousRateId { get; set; }
+    public DateTime? SupersededAt { get; set; }
     public DateOnly SeasonStart { get; set; }
     public DateOnly SeasonEnd { get; set; }
     public PricingModel PricingModel { get; set; }
@@ -31,5 +45,13 @@ public sealed class RateResponse
     public decimal? ChildDiscount { get; set; }
     public decimal? SingleSupplement { get; set; }
     public int? Capacity { get; set; }
+    public string? ValidityPeriod { get; set; }
+    public string? ValidityPeriodDescription { get; set; }
+    public string? RateVariation { get; set; }
+    public string? RateTypeName { get; set; }
+    public string? RateBasis { get; set; }
+    public string? OccupancyType { get; set; }
+    public string? MealBasis { get; set; }
+    public string? MinimumStay { get; set; }
     public DateTime CreatedAt { get; set; }
 }

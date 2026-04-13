@@ -6,4 +6,5 @@ namespace AI.Forged.TourOps.Application.Interfaces;
 public interface IIngestionService
 {
     Task<Rate> ProcessRatePayloadAsync(IngestionRatePayload payload, CancellationToken cancellationToken = default);
+    Task<IngestionPropertyBundleResult> ProcessPropertyBundleAsync(IngestionPropertyBundlePayload payload, CancellationToken cancellationToken = default);
 }

@@ -3,5 +3,21 @@
 @tailwind utilities;
 
 body {
-  @apply text-slate-900;
+  @apply text-slate-900 antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+* {
+  scrollbar-width: thin;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  @apply outline-none ring-2 ring-amber-300 ring-offset-2 ring-offset-white;
 }

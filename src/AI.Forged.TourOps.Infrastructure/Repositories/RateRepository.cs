@@ -14,13 +14,37 @@ public class RateRepository(AppDbContext dbContext) : IRateRepository
         return rate;
     }
 
+    public async Task<Rate?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await dbContext.Rates
+            .Include(x => x.ProductRoom)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
     public async Task<IReadOnlyList<Rate>> GetByProductIdAsync(Guid productId, CancellationToken cancellationToken = default) =>
-        await dbContext.Rates.AsNoTracking().Where(x => x.ProductId == productId).OrderBy(x => x.SeasonStart).ToListAsync(cancellationToken);
+        await dbContext.Rates
+            .Include(x => x.ProductRoom)
+            .AsNoTracking()
+            .Where(x => x.ProductId == productId)
+            .OrderByDescending(x => x.IsActive)
+            .ThenByDescending(x => x.CreatedAt)
+            .ThenBy(x => x.SeasonStart)
+            .ToListAsync(cancellationToken);
 
     public async Task<Rate?> GetApplicableRateAsync(Guid productId, DateOnly date, string currency, CancellationToken cancellationToken = default) =>
         await dbContext.Rates
             .AsNoTracking()
-            .Where(x => x.ProductId == productId && x.Currency == currency && x.SeasonStart <= date && x.SeasonEnd >= date)
-            .OrderBy(x => x.SeasonStart)
+            .Where(x => x.ProductId == productId && x.IsActive && x.Currency == currency && x.SeasonStart <= date && x.SeasonEnd >= date)
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenBy(x => x.SeasonStart)
             .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task MarkAsSupersededAsync(Guid rateId, DateTime supersededAtUtc, CancellationToken cancellationToken = default)
+    {
+        var existingRate = await dbContext.Rates.FirstOrDefaultAsync(x => x.Id == rateId, cancellationToken)
+            ?? throw new InvalidOperationException("Rate not found.");
+
+        existingRate.IsActive = false;
+        existingRate.SupersededAt = supersededAtUtc;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

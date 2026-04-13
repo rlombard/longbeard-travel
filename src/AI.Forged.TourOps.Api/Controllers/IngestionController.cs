@@ -14,4 +14,11 @@ public class IngestionController(IIngestionService ingestionService) : Controlle
         var rate = await ingestionService.ProcessRatePayloadAsync(request.ToPayload(), cancellationToken);
         return Ok(rate.ToResponse());
     }
+
+    [HttpPost("properties")]
+    public async Task<ActionResult<IngestionPropertyBundleResponse>> ProcessPropertyBundle([FromBody] IngestionPropertyBundleRequest request, CancellationToken cancellationToken)
+    {
+        var result = await ingestionService.ProcessPropertyBundleAsync(request.ToPayload(), cancellationToken);
+        return Ok(result.ToResponse());
+    }
 }

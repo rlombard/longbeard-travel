@@ -4,6 +4,7 @@ import { PageLayout } from '../components/PageLayout';
 import { ItineraryBuilderPage } from '../features/itineraries/ItineraryBuilderPage';
 import { ProductsPage } from '../features/products/ProductsPage';
 import { QuoteGeneratorPage } from '../features/quotes/QuoteGeneratorPage';
+import { SuppliersPage } from '../features/suppliers/SuppliersPage';
 
 const router = createBrowserRouter([
   {
@@ -14,7 +15,8 @@ const router = createBrowserRouter([
       </AuthGuard>
     ),
     children: [
-      { index: true, element: <Navigate to="/products" replace /> },
+      { index: true, element: <Navigate to="/suppliers" replace /> },
+      { path: '/suppliers', element: <SuppliersPage /> },
       { path: '/products', element: <ProductsPage /> },
       { path: '/itineraries', element: <ItineraryBuilderPage /> },
       { path: '/quotes', element: <QuoteGeneratorPage /> }
