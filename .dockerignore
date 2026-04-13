@@ -1,0 +1,7 @@
+.git
+.gitignore
+**/bin
+**/obj
+ui/node_modules
+ui/dist
+npm-debug.log

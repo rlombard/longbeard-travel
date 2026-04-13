@@ -40,3 +40,24 @@ Rules:
 
 ## Goal
 Convert supplier data → itinerary → priced quote in minutes.
+
+## Docker Quick Start
+Run the full platform (frontend + api + postgres + keycloak):
+
+```bash
+docker-compose up --build
+```
+
+### Service Endpoints
+- Frontend: http://localhost:3000
+- API: http://localhost:5000
+- Keycloak: http://localhost:8080
+- PostgreSQL: localhost:5432
+
+### Default Credentials
+- Keycloak admin console: `admin / admin`
+- Default realm user: `admin / admin`
+
+### Notes
+- Keycloak realm auto-import file: `keycloak/realm-tourops.json`
+- API uses `ConnectionStrings__DefaultConnection` and points to `postgres` service inside Docker network.
