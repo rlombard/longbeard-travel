@@ -10,6 +10,7 @@ export const keycloak = new Keycloak({
 let accessToken: string | null = null;
 
 export const getAccessToken = () => accessToken;
+export const getCurrentUserId = () => keycloak.tokenParsed?.sub ?? null;
 
 export const setAccessToken = (token: string | null) => {
   accessToken = token;

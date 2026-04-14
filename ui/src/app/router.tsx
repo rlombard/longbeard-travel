@@ -1,8 +1,12 @@
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { AuthGuard } from '../auth/AuthGuard';
 import { PageLayout } from '../components/PageLayout';
+import { BookingDetailPage } from '../features/bookings/BookingDetailPage';
+import { EmailsPage } from '../features/emails/EmailsPage';
+import { BookingsPage } from '../features/bookings/BookingsPage';
 import { ItineraryBuilderPage } from '../features/itineraries/ItineraryBuilderPage';
 import { ProductsPage } from '../features/products/ProductsPage';
+import { OperationsPage } from '../features/tasks/OperationsPage';
 import { QuoteGeneratorPage } from '../features/quotes/QuoteGeneratorPage';
 import { SuppliersPage } from '../features/suppliers/SuppliersPage';
 
@@ -19,7 +23,11 @@ const router = createBrowserRouter([
       { path: '/suppliers', element: <SuppliersPage /> },
       { path: '/products', element: <ProductsPage /> },
       { path: '/itineraries', element: <ItineraryBuilderPage /> },
-      { path: '/quotes', element: <QuoteGeneratorPage /> }
+      { path: '/quotes', element: <QuoteGeneratorPage /> },
+      { path: '/bookings', element: <BookingsPage /> },
+      { path: '/bookings/:bookingId', element: <BookingDetailPage /> },
+      { path: '/emails', element: <EmailsPage /> },
+      { path: '/operations', element: <OperationsPage /> }
     ]
   }
 ]);

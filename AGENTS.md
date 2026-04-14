@@ -1,7 +1,40 @@
 # AGENTS.md
 
 ## Purpose
+
 Defines how AI agents (Codex / automation) must interact with this codebase.
+
+---
+
+## Token Efficiency Mode (MANDATORY)
+
+Agents MUST:
+
+* Use **caveman style language**
+* Short sentences
+* No filler
+* No repetition
+* Prefer lists over paragraphs
+
+### Output Rules
+
+* Say less, mean same
+* No long explanations
+* No storytelling
+* No redundant phrasing
+
+### Example
+
+GOOD:
+
+* create service
+* validate input
+* return dto
+
+BAD:
+
+* long explanations
+* unnecessary commentary
 
 ---
 
@@ -13,142 +46,341 @@ Controller → Service → Repository → DbContext
 
 ### Rules
 
-- Controllers:
-  - Use Request/Response DTOs ONLY
-  - No business logic
-  - No EF usage
+* Controllers:
 
-- Services:
-  - Contain ALL business logic
-  - Coordinate repositories
-  - Handle validation
+  * DTOs ONLY
+  * No business logic
+  * No EF usage
 
-- Repositories:
-  - Data access only
-  - No business logic
-  - Return domain entities internally only
+* Services:
 
-- Entities:
-  - NEVER exposed via API
-  - Only used inside service/repository layer
+  * ALL business logic
+  * Coordinate repositories
+  * Validation here
 
-Violation of this structure is not allowed.
+* Repositories:
+
+  * Data access only
+  * No business logic
+
+* Entities:
+
+  * NEVER exposed via API
+  * Internal use only
+
+Violation NOT allowed.
 
 ---
 
 ## Backend Stack
 
-- .NET 8 Web API
-- Entity Framework Core
-- PostgreSQL
+* .NET 8 Web API
+* Entity Framework Core
+* PostgreSQL
 
 ---
 
 ## Frontend Stack
 
-- React
-- Keycloak authentication (OIDC)
+* React
+* Keycloak (OIDC)
 
 ---
 
-## Domain Scope (MVP 1)
+## Domain Scope
 
-Entities:
-- Supplier
-- Product
-- Rate
-- Itinerary
-- ItineraryItem
-- Quote
-- QuoteLineItem
+### Core
+
+* Supplier
+* Product
+* Rate
+* Itinerary
+* ItineraryItem
+* Quote
+* QuoteLineItem
+
+### Phase 2
+
+* Booking
+* BookingItem
+
+### Phase 3
+
+* Task (Operational Task system)
+
+### Phase 4 (AI + Email)
+
+* EmailThread
+* EmailMessage
+* EmailDraft
+* SuggestedTask (AI output)
+
+---
+
+## Domain Rules (CRITICAL)
+
+### Product
+
+Product = reusable supplier offering
+
+NOT:
+
+* booking
+* quote line
+* itinerary instance
+
+---
+
+### Rate
+
+* belongs to Product
+* defines pricing rules
+
+---
+
+### ItineraryItem
+
+* references Product
+* stores usage (day, qty, notes)
+
+---
+
+### QuoteLineItem
+
+* generated output only
+* not source of truth
+
+---
+
+### Booking
+
+* execution layer
+* derived from Quote
+
+---
+
+### Task
+
+* operational action
+* linked to Booking or BookingItem
 
 ---
 
 ## Pricing Engine Rules
 
-- Deterministic only (NO AI decision making)
-- Supported models:
-  - PerPerson
-  - PerGroup
-  - PerUnit
-- Must:
-  - Fail if no rate found
-  - Fail if currency missing
-  - Apply markup AFTER cost
+* Deterministic ONLY
+* NO AI logic
+
+Supported:
+
+* PerPerson
+* PerGroup
+* PerUnit
+
+Must:
+
+* fail if no rate
+* fail if currency missing
+* apply markup AFTER cost
+
+---
+
+## AI Rules (CRITICAL)
+
+AI is ASSIST ONLY.
+
+Allowed:
+
+* suggest tasks
+* summarize emails
+* classify emails
+* draft replies
+
+Forbidden:
+
+* auto confirm bookings
+* auto send emails
+* auto change pricing
+* auto make decisions
+
+Human ALWAYS decides.
 
 ---
 
 ## AI Forged Integration
 
-- AI Forged sends structured JSON
-- This system:
-  - Validates
-  - Maps
-  - Persists
+Primary AI path:
 
-AI NEVER writes directly to DB.
+Flow:
+Email → PDF → AI Forged → JSON → System
+
+System:
+
+* generate PDF
+* send to AI Forged
+* parse JSON
+* map to SuggestedTasks / insights
+
+AI NEVER writes DB directly.
+
+---
+
+## LLM Architecture
+
+Must exist:
+
+* Generic LLM interface
+* Provider-specific implementations
+
+Providers:
+
+* OpenAI
+* Azure OpenAI
+* Anthropic
+
+Rules:
+
+* No provider logic in services
+* Use DI
+* Config via appsettings/env
+
+---
+
+## Email System
+
+Built-in lightweight client.
+
+Entities:
+
+* EmailThread
+* EmailMessage
+* EmailDraft
+
+Rules:
+
+* no auto-send
+* drafts require approval
+* AI can suggest only
+
+---
+
+## Task System
+
+Operational Tasks:
+
+Statuses:
+
+* ToDo
+* Waiting
+* FollowUp
+* Blocked
+* Done
+
+Features:
+
+* assign user
+* reassign
+* kanban + list UI
 
 ---
 
 ## Coding Standards
 
-- Use async/await
-- Use dependency injection
-- No static state
-- All services must be testable
+* async/await everywhere
+* dependency injection
+* no static state
+* services testable
+* no shortcuts
 
 ---
 
 ## Folder Structure (Required)
-/src
-    /Api
-    /Controllers
-    /Models (DTOs)
-    /Application
-    /Services
-    /Interfaces
-    /Domain
-    /Entities
-    /Enums
-    /Infrastructure
-    /Repositories
-    /Data (DbContext)
 
+/src
+/Api
+/Controllers
+/Models
+/Application
+/Services
+/Interfaces
+/Domain
+/Entities
+/Enums
+/Infrastructure
+/Repositories
+/Data
 
 ---
 
 ## What Agents SHOULD Do
 
-- Scaffold controllers/services/repositories correctly
-- Generate DTOs separate from entities
-- Implement pricing engine in service layer
-- Respect boundaries
+* follow architecture strictly
+* generate DTOs separate
+* keep services clean
+* enforce domain rules
+* integrate AI via abstraction only
 
 ---
 
 ## What Agents MUST NOT Do
 
-- Use DbContext in controllers
-- Return EF entities in API responses
-- Put logic in repositories
-- Introduce AI logic into pricing
-
+* use DbContext in controllers
+* return entities in API
+* put logic in repositories
+* mix AI into pricing
+* auto-execute AI decisions
+* hardcode providers
+* break layering
+1§  qwe[]
 ---
 
 ## MVP Goal
 
-Enable:
-- ingestion → itinerary → quote
-
-NOT:
-- full booking system
-- enterprise features
+ingestion → itinerary → quote → booking → tasks → email assist
 
 ---
 
-## Future Expansion
+## Keycloak User Admin Rules
 
-System must remain extensible for:
-- bookings
-- CRM
-- distribution APIs
+- Keycloak is identity backend
+- Frontend never calls Keycloak admin API directly
+- Flow is: UI -> API -> Keycloak Admin API
+- Only `admin` role can create/view/manage users
+- UI may:
+  - create users
+  - assign/de-assign existing roles
+  - assign/de-assign existing groups
+  - enable/disable users
+  - reset temp passwords
+- UI may NOT:
+  - create roles
+  - create groups
+  - create permissions
+- New user must get temporary password
+- New user must be forced to change password on first login
+- Keycloak remains source of truth
+
+---
+
+## Future Direction
+
+System must support:
+
+* AI-assisted operations
+* time-zone gap reduction
+* email understanding
+* human-in-the-loop decisions
+* agentic assist (later phase)
+
+---
+
+## Final Rule
+
+Keep system:
+
+* clean
+* modular
+* extensible
+* human-controlled
+
+AI assists. Human decides.

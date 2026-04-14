@@ -41,6 +41,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       KEYCLOAK__AUTHORITY: http://keycloak:8080/realms/${KEYCLOAK_REALM}
+      KEYCLOAK__PUBLICAUTHORITY: http://localhost:8080/realms/${KEYCLOAK_REALM}
       KEYCLOAK__AUDIENCE: ${KEYCLOAK_CLIENT_ID}
     ports:
       - "${API_HOST_PORT:-5001}:5000"

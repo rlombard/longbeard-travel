@@ -1,18 +1,22 @@
 import { FormEvent, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { useCreateBooking } from '../bookings/hooks';
 import { FormInput } from '../../components/FormInput';
 import { SelectDropdown } from '../../components/SelectDropdown';
 import { Table } from '../../components/Table';
 import { useGenerateQuote } from './hooks';
 
 export const QuoteGeneratorPage = () => {
+  const navigate = useNavigate();
   const [itineraryId, setItineraryId] = useState('');
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
   const [currency, setCurrency] = useState('USD');
   const [markup, setMarkup] = useState(0.2);
   const generateMutation = useGenerateQuote();
+  const createBookingMutation = useCreateBooking();
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -63,6 +67,22 @@ export const QuoteGeneratorPage = () => {
 
       {quote ? (
         <Card title="Quote Result">
+          <div className="mb-4 flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-slate-700 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-700">Quote Ready</p>
+              <p className="font-mono text-xs text-slate-600">{quote.id}</p>
+            </div>
+            <Button
+              type="button"
+              isLoading={createBookingMutation.isPending}
+              onClick={async () => {
+                const booking = await createBookingMutation.mutateAsync({ quoteId: quote.id });
+                navigate(`/bookings/${booking.id}`);
+              }}
+            >
+              Convert To Booking
+            </Button>
+          </div>
           <div className="mb-4 grid gap-3 md:grid-cols-3">
             <p><strong>Total Cost:</strong> {quote.totalCost} {quote.currency}</p>
             <p><strong>Total Price:</strong> {quote.totalPrice} {quote.currency}</p>
@@ -78,6 +98,9 @@ export const QuoteGeneratorPage = () => {
               </tr>
             ))}
           </Table>
+          {createBookingMutation.isError ? (
+            <p className="mt-3 text-sm text-red-600">{(createBookingMutation.error as Error).message}</p>
+          ) : null}
         </Card>
       ) : null}
     </div>

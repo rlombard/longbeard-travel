@@ -4,7 +4,10 @@ const nav = [
   { to: '/suppliers', label: 'Suppliers' },
   { to: '/products', label: 'Products' },
   { to: '/itineraries', label: 'Itinerary Builder' },
-  { to: '/quotes', label: 'Quote Generator' }
+  { to: '/quotes', label: 'Quote Generator' },
+  { to: '/bookings', label: 'Bookings' },
+  { to: '/emails', label: 'Emails' },
+  { to: '/operations', label: 'Operations' }
 ];
 
 export const PageLayout = () => {
@@ -23,7 +26,7 @@ export const PageLayout = () => {
             <Link
               key={item.to}
               to={item.to}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition ${location.pathname === item.to ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20' : 'bg-slate-100 text-slate-700 hover:bg-white hover:text-slate-900'}`}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${location.pathname === item.to || location.pathname.startsWith(`${item.to}/`) ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20' : 'bg-slate-100 text-slate-700 hover:bg-white hover:text-slate-900'}`}
             >
               {item.label}
             </Link>

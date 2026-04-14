@@ -1,5 +1,6 @@
 using AI.Forged.TourOps.Application.Models;
 using AI.Forged.TourOps.Domain.Entities;
+using AI.Forged.TourOps.Domain.Enums;
 
 namespace AI.Forged.TourOps.Api.Models;
 
@@ -419,6 +420,129 @@ public static class ModelMappings
             MarkupPercentage = li.MarkupPercentage,
             Currency = li.Currency
         }).ToList()
+    };
+
+    public static BookingListItemResponse ToListItemResponse(this Booking booking) => new()
+    {
+        Id = booking.Id,
+        QuoteId = booking.QuoteId,
+        Status = booking.Status,
+        CreatedAt = booking.CreatedAt,
+        ItemCount = booking.Items.Count
+    };
+
+    public static BookingResponse ToResponse(this Booking booking) => new()
+    {
+        Id = booking.Id,
+        QuoteId = booking.QuoteId,
+        Status = booking.Status,
+        CreatedAt = booking.CreatedAt,
+        Items = booking.Items.Select(x => x.ToResponse()).ToList()
+    };
+
+    public static BookingItemResponse ToResponse(this BookingItem bookingItem) => new()
+    {
+        Id = bookingItem.Id,
+        BookingId = bookingItem.BookingId,
+        ProductId = bookingItem.ProductId,
+        ProductName = bookingItem.Product?.Name ?? string.Empty,
+        SupplierId = bookingItem.SupplierId,
+        SupplierName = bookingItem.Supplier?.Name ?? string.Empty,
+        Status = bookingItem.Status,
+        Notes = bookingItem.Notes,
+        CreatedAt = bookingItem.CreatedAt
+    };
+
+    public static TaskResponse ToResponse(this OperationalTask task) => new()
+    {
+        Id = task.Id,
+        Title = task.Title,
+        Description = task.Description,
+        Status = task.Status,
+        AssignedToUserId = task.AssignedToUserId,
+        CreatedByUserId = task.CreatedByUserId,
+        DueDate = task.DueDate,
+        BookingId = task.BookingId,
+        BookingItemId = task.BookingItemId,
+        RelatedBookingId = task.BookingId ?? task.BookingItem?.BookingId,
+        ProductName = task.BookingItem?.Product?.Name,
+        SupplierName = task.BookingItem?.Supplier?.Name,
+        CreatedAt = task.CreatedAt,
+        UpdatedAt = task.UpdatedAt
+    };
+
+    public static TaskSuggestionResponse ToResponse(this OperationalTaskSuggestion suggestion) => new()
+    {
+        Id = suggestion.Id,
+        BookingId = suggestion.BookingId,
+        BookingItemId = suggestion.BookingItemId,
+        Title = suggestion.Title,
+        Description = suggestion.Description,
+        SuggestedStatus = suggestion.SuggestedStatus,
+        SuggestedDueDate = suggestion.SuggestedDueDate,
+        Reason = suggestion.Reason,
+        Confidence = suggestion.Confidence,
+        RequiresHumanReview = suggestion.RequiresHumanReview,
+        State = suggestion.State,
+        Source = suggestion.Source,
+        AcceptedTaskId = suggestion.AcceptedTaskId,
+        ReviewedByUserId = suggestion.ReviewedByUserId,
+        CreatedAt = suggestion.CreatedAt,
+        ReviewedAt = suggestion.ReviewedAt,
+        ProductName = suggestion.BookingItem?.Product?.Name,
+        SupplierName = suggestion.BookingItem?.Supplier?.Name
+    };
+
+    public static EmailThreadResponse ToResponse(this EmailThread thread) => new()
+    {
+        Id = thread.Id,
+        BookingId = thread.BookingId,
+        BookingItemId = thread.BookingItemId,
+        RelatedBookingId = thread.BookingId ?? thread.BookingItem?.BookingId,
+        Subject = thread.Subject,
+        SupplierEmail = thread.SupplierEmail,
+        LastMessageAt = thread.LastMessageAt,
+        CreatedAt = thread.CreatedAt,
+        Messages = thread.Messages.OrderByDescending(x => x.SentAt).Select(x => x.ToResponse()).ToList(),
+        Drafts = thread.Drafts.OrderByDescending(x => x.UpdatedAt).Select(x => x.ToResponse()).ToList()
+    };
+
+    public static EmailMessageResponse ToResponse(this EmailMessage message) => new()
+    {
+        Id = message.Id,
+        EmailThreadId = message.EmailThreadId,
+        Direction = message.Direction,
+        Subject = message.Subject,
+        BodyText = message.BodyText,
+        BodyHtml = message.BodyHtml,
+        Sender = message.Sender,
+        Recipients = message.Recipients,
+        SentAt = message.SentAt,
+        RequiresHumanReview = message.RequiresHumanReview,
+        AiSummary = message.AiSummary,
+        AiClassification = message.AiClassification,
+        AiConfidence = message.AiConfidence,
+        CreatedAt = message.CreatedAt
+    };
+
+    public static EmailDraftResponse ToResponse(this EmailDraft draft) => new()
+    {
+        Id = draft.Id,
+        BookingId = draft.BookingId,
+        BookingItemId = draft.BookingItemId,
+        EmailThreadId = draft.EmailThreadId,
+        Subject = draft.Subject,
+        Body = draft.Body,
+        Status = draft.Status,
+        GeneratedBy = draft.GeneratedBy,
+        ApprovedByUserId = draft.ApprovedByUserId,
+        ApprovedAt = draft.ApprovedAt,
+        SentAt = draft.SentAt,
+        GeneratedByAi = draft.GeneratedBy == EmailDraftGeneratedBy.AI,
+        LlmProvider = draft.LlmProvider,
+        LlmModel = draft.LlmModel,
+        CreatedAt = draft.CreatedAt,
+        UpdatedAt = draft.UpdatedAt
     };
 
     public static IngestionRatePayload ToPayload(this IngestionRatePayloadRequest request) => new()

@@ -20,4 +20,11 @@ public class QuoteRepository(AppDbContext dbContext) : IQuoteRepository
             .Include(x => x.LineItems)
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+    public async Task<Quote?> GetByIdForBookingAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await dbContext.Quotes
+            .Include(x => x.LineItems)
+                .ThenInclude(x => x.Product)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 }

@@ -14,5 +14,6 @@ public class Quote
     public DateTime CreatedAt { get; set; }
 
     public Itinerary Itinerary { get; set; } = null!;
+    public Booking? Booking { get; set; }
     public ICollection<QuoteLineItem> LineItems { get; set; } = new List<QuoteLineItem>();
 }

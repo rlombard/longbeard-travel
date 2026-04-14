@@ -20,12 +20,30 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ItineraryItem> ItineraryItems => Set<ItineraryItem>();
     public DbSet<Quote> Quotes => Set<Quote>();
     public DbSet<QuoteLineItem> QuoteLineItems => Set<QuoteLineItem>();
+    public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<BookingItem> BookingItems => Set<BookingItem>();
+    public DbSet<OperationalTask> Tasks => Set<OperationalTask>();
+    public DbSet<OperationalTaskSuggestion> TaskSuggestions => Set<OperationalTaskSuggestion>();
+    public DbSet<EmailThread> EmailThreads => Set<EmailThread>();
+    public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
+    public DbSet<EmailDraft> EmailDrafts => Set<EmailDraft>();
+    public DbSet<LlmAuditLog> LlmAuditLogs => Set<LlmAuditLog>();
+    public DbSet<HumanApprovalRequest> HumanApprovalRequests => Set<HumanApprovalRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresEnum<ProductType>();
         modelBuilder.HasPostgresEnum<PricingModel>();
         modelBuilder.HasPostgresEnum<QuoteStatus>();
+        modelBuilder.HasPostgresEnum<BookingStatus>();
+        modelBuilder.HasPostgresEnum<BookingItemStatus>();
+        modelBuilder.HasPostgresEnum<AI.Forged.TourOps.Domain.Enums.TaskStatus>();
+        modelBuilder.HasPostgresEnum<TaskSuggestionState>();
+        modelBuilder.HasPostgresEnum<EmailDirection>();
+        modelBuilder.HasPostgresEnum<EmailDraftStatus>();
+        modelBuilder.HasPostgresEnum<EmailDraftGeneratedBy>();
+        modelBuilder.HasPostgresEnum<EmailClassificationType>();
+        modelBuilder.HasPostgresEnum<HumanApprovalStatus>();
 
         modelBuilder.Entity<Supplier>(entity =>
         {
@@ -237,6 +255,205 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithMany()
                 .HasForeignKey(x => x.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Booking>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasIndex(x => x.QuoteId).IsUnique();
+            entity.HasOne(x => x.Quote)
+                .WithOne(x => x.Booking)
+                .HasForeignKey<Booking>(x => x.QuoteId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.Tasks)
+                .WithOne(x => x.Booking)
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.SuggestedTasks)
+                .WithOne(x => x.Booking)
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.EmailThreads)
+                .WithOne(x => x.Booking)
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.EmailDrafts)
+                .WithOne(x => x.Booking)
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BookingItem>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasOne(x => x.Booking)
+                .WithMany(x => x.Items)
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Product)
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Supplier)
+                .WithMany()
+                .HasForeignKey(x => x.SupplierId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(x => x.Tasks)
+                .WithOne(x => x.BookingItem)
+                .HasForeignKey(x => x.BookingItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.SuggestedTasks)
+                .WithOne(x => x.BookingItem)
+                .HasForeignKey(x => x.BookingItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.EmailThreads)
+                .WithOne(x => x.BookingItem)
+                .HasForeignKey(x => x.BookingItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.EmailDrafts)
+                .WithOne(x => x.BookingItem)
+                .HasForeignKey(x => x.BookingItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<OperationalTask>(entity =>
+        {
+            entity.ToTable("Tasks");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(4000);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.AssignedToUserId).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.CreatedByUserId).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasIndex(x => x.BookingId);
+            entity.HasIndex(x => x.BookingItemId);
+            entity.HasIndex(x => x.AssignedToUserId);
+        });
+
+        modelBuilder.Entity<OperationalTaskSuggestion>(entity =>
+        {
+            entity.ToTable("TaskSuggestions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(4000).IsRequired();
+            entity.Property(x => x.SuggestedStatus).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Reason).HasMaxLength(4000).IsRequired();
+            entity.Property(x => x.Confidence).HasPrecision(5, 4);
+            entity.Property(x => x.State).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Source).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.LlmProvider).HasMaxLength(128);
+            entity.Property(x => x.LlmModel).HasMaxLength(128);
+            entity.Property(x => x.AuditMetadataJson).HasMaxLength(8000);
+            entity.Property(x => x.ReviewedByUserId).HasMaxLength(256);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasIndex(x => x.BookingId);
+            entity.HasIndex(x => x.BookingItemId);
+            entity.HasIndex(x => x.State);
+            entity.HasOne(x => x.AcceptedTask)
+                .WithMany(x => x.AcceptedSuggestions)
+                .HasForeignKey(x => x.AcceptedTaskId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<EmailThread>(entity =>
+        {
+            entity.ToTable("EmailThreads");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ExternalThreadId).HasMaxLength(256);
+            entity.Property(x => x.Subject).HasMaxLength(512).IsRequired();
+            entity.Property(x => x.SupplierEmail).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasIndex(x => x.BookingId);
+            entity.HasIndex(x => x.BookingItemId);
+            entity.HasIndex(x => x.SupplierEmail);
+        });
+
+        modelBuilder.Entity<EmailMessage>(entity =>
+        {
+            entity.ToTable("EmailMessages");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Direction).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Subject).HasMaxLength(512).IsRequired();
+            entity.Property(x => x.BodyText).HasMaxLength(16000).IsRequired();
+            entity.Property(x => x.BodyHtml).HasMaxLength(32000);
+            entity.Property(x => x.Sender).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.Recipients).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.AiSummary).HasMaxLength(4000);
+            entity.Property(x => x.AiClassification).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.AiConfidence).HasPrecision(5, 4);
+            entity.Property(x => x.AiExtractedSignalsJson).HasMaxLength(8000);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasOne(x => x.Thread)
+                .WithMany(x => x.Messages)
+                .HasForeignKey(x => x.EmailThreadId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.EmailThreadId);
+            entity.HasIndex(x => x.SentAt);
+        });
+
+        modelBuilder.Entity<EmailDraft>(entity =>
+        {
+            entity.ToTable("EmailDrafts");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Subject).HasMaxLength(512).IsRequired();
+            entity.Property(x => x.Body).HasMaxLength(16000).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.GeneratedBy).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.ApprovedByUserId).HasMaxLength(256);
+            entity.Property(x => x.LlmProvider).HasMaxLength(128);
+            entity.Property(x => x.LlmModel).HasMaxLength(128);
+            entity.Property(x => x.AuditMetadataJson).HasMaxLength(8000);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasIndex(x => x.BookingId);
+            entity.HasIndex(x => x.BookingItemId);
+            entity.HasIndex(x => x.EmailThreadId);
+            entity.HasIndex(x => x.Status);
+            entity.HasOne(x => x.EmailThread)
+                .WithMany(x => x.Drafts)
+                .HasForeignKey(x => x.EmailThreadId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<LlmAuditLog>(entity =>
+        {
+            entity.ToTable("LlmAuditLogs");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Category).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Operation).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Provider).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Model).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.PromptSummary).HasMaxLength(4000);
+            entity.Property(x => x.ResponseSummary).HasMaxLength(4000);
+            entity.Property(x => x.StructuredResultJson).HasMaxLength(16000);
+            entity.Property(x => x.MetadataJson).HasMaxLength(8000);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasIndex(x => x.Category);
+            entity.HasIndex(x => x.Provider);
+            entity.HasIndex(x => x.CreatedAt);
+        });
+
+        modelBuilder.Entity<HumanApprovalRequest>(entity =>
+        {
+            entity.ToTable("HumanApprovalRequests");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ActionType).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.EntityType).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.RequestedByUserId).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.ReviewedByUserId).HasMaxLength(256);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.PayloadJson).HasMaxLength(8000);
+            entity.Property(x => x.DecisionNotes).HasMaxLength(4000);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasIndex(x => new { x.EntityType, x.EntityId });
+            entity.HasIndex(x => x.Status);
         });
     }
 }
