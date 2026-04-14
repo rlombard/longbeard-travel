@@ -30,6 +30,7 @@ public class BookingService(IBookingRepository bookingRepository, IQuoteReposito
         {
             Id = Guid.NewGuid(),
             QuoteId = quote.Id,
+            LeadCustomerId = quote.LeadCustomerId,
             Status = BookingStatus.Draft,
             CreatedAt = createdAt,
             Items = quote.LineItems.Select(lineItem => new BookingItem

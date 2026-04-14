@@ -17,8 +17,10 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<ISupplierService, SupplierService>();
+        services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IRateService, RateService>();
+        services.AddScoped<IInvoiceService, InvoiceService>();
         services.AddScoped<IItineraryService, ItineraryService>();
         services.AddScoped<IPricingService, PricingService>();
         services.AddScoped<IQuoteService, QuoteService>();
@@ -26,6 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBookingItemService, BookingItemService>();
         services.AddScoped<ITaskService, TaskService>();
         services.AddScoped<IBookingAiService, BookingAiService>();
+        services.AddScoped<IItineraryAiService, ItineraryAiService>();
         services.AddScoped<IBookingTaskSuggestionService, BookingTaskSuggestionService>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<IEmailAiService, EmailAiService>();

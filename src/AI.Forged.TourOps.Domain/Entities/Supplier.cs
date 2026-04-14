@@ -9,4 +9,5 @@ public class Supplier
     public DateTime CreatedAt { get; set; }
 
     public ICollection<Product> Products { get; set; } = new List<Product>();
+    public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 }

@@ -14,6 +14,8 @@ public sealed class QuoteResponse
 {
     public Guid Id { get; set; }
     public Guid ItineraryId { get; set; }
+    public Guid? LeadCustomerId { get; set; }
+    public string? LeadCustomerName { get; set; }
     public decimal TotalCost { get; set; }
     public decimal TotalPrice { get; set; }
     public decimal Margin { get; set; }

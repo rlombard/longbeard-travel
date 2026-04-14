@@ -17,14 +17,25 @@ public class QuoteRepository(AppDbContext dbContext) : IQuoteRepository
 
     public async Task<Quote?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         await dbContext.Quotes
+            .Include(x => x.LeadCustomer)
             .Include(x => x.LineItems)
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
     public async Task<Quote?> GetByIdForBookingAsync(Guid id, CancellationToken cancellationToken = default) =>
         await dbContext.Quotes
+            .Include(x => x.LeadCustomer)
             .Include(x => x.LineItems)
                 .ThenInclude(x => x.Product)
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+    public async Task UpdateLeadCustomerAsync(Guid quoteId, Guid? customerId, CancellationToken cancellationToken = default)
+    {
+        var quote = await dbContext.Quotes.FirstOrDefaultAsync(x => x.Id == quoteId, cancellationToken)
+            ?? throw new InvalidOperationException("Quote not found.");
+
+        quote.LeadCustomerId = customerId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

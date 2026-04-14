@@ -8,6 +8,8 @@ export interface ItineraryItem {
 
 export interface Itinerary {
   id: string;
+  leadCustomerId?: string | null;
+  leadCustomerName?: string | null;
   startDate: string;
   duration: number;
   createdAt: string;

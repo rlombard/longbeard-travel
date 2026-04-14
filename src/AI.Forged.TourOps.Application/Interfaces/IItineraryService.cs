@@ -1,9 +1,9 @@
-using AI.Forged.TourOps.Domain.Entities;
+using AI.Forged.TourOps.Application.Models.Itineraries;
 
 namespace AI.Forged.TourOps.Application.Interfaces;
 
 public interface IItineraryService
 {
-    Task<Itinerary> CreateItineraryAsync(Itinerary itinerary, IEnumerable<ItineraryItem> items, CancellationToken cancellationToken = default);
-    Task<Itinerary?> GetItineraryAsync(Guid itineraryId, CancellationToken cancellationToken = default);
+    Task<ItineraryModel> CreateItineraryAsync(CreateItineraryModel request, CancellationToken cancellationToken = default);
+    Task<ItineraryModel?> GetItineraryAsync(Guid itineraryId, CancellationToken cancellationToken = default);
 }

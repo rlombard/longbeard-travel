@@ -3,9 +3,12 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 const nav = [
   { to: '/suppliers', label: 'Suppliers' },
   { to: '/products', label: 'Products' },
-  { to: '/itineraries', label: 'Itinerary Builder' },
+  { to: '/itineraries', label: 'Itineraries' },
+  { to: '/itineraries/ai', label: 'AI Itinerary Assist' },
   { to: '/quotes', label: 'Quote Generator' },
   { to: '/bookings', label: 'Bookings' },
+  { to: '/invoices', label: 'Invoices' },
+  { to: '/customers', label: 'Customers' },
   { to: '/emails', label: 'Emails' },
   { to: '/operations', label: 'Operations' }
 ];
@@ -26,7 +29,7 @@ export const PageLayout = () => {
             <Link
               key={item.to}
               to={item.to}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition ${location.pathname === item.to || location.pathname.startsWith(`${item.to}/`) ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20' : 'bg-slate-100 text-slate-700 hover:bg-white hover:text-slate-900'}`}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${isActive(location.pathname, item.to) ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20' : 'bg-slate-100 text-slate-700 hover:bg-white hover:text-slate-900'}`}
             >
               {item.label}
             </Link>
@@ -37,4 +40,12 @@ export const PageLayout = () => {
       </div>
     </div>
   );
+};
+
+const isActive = (pathname: string, target: string) => {
+  if (target === '/itineraries') {
+    return pathname === '/itineraries';
+  }
+
+  return pathname === target || pathname.startsWith(`${target}/`);
 };

@@ -18,6 +18,8 @@ public sealed class CreateItineraryItemRequest
 public sealed class ItineraryResponse
 {
     public Guid Id { get; set; }
+    public Guid? LeadCustomerId { get; set; }
+    public string? LeadCustomerName { get; set; }
     public DateOnly StartDate { get; set; }
     public int Duration { get; set; }
     public DateTime CreatedAt { get; set; }

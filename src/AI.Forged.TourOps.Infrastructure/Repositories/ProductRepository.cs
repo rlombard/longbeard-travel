@@ -1,3 +1,4 @@
+using AI.Forged.TourOps.Application.Models.Itineraries;
 using AI.Forged.TourOps.Application.Interfaces;
 using AI.Forged.TourOps.Domain.Entities;
 using AI.Forged.TourOps.Infrastructure.Data;
@@ -24,6 +25,68 @@ public class ProductRepository(AppDbContext dbContext) : IProductRepository
         await IncludeDetails(dbContext.Products)
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<Product>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default)
+    {
+        var productIds = ids.Distinct().ToArray();
+        if (productIds.Length == 0)
+        {
+            return [];
+        }
+
+        return await IncludePlanningDetails(dbContext.Products)
+            .AsNoTracking()
+            .Where(x => productIds.Contains(x.Id))
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Product>> SearchForItineraryPlanningAsync(ProductCatalogFilter filter, CancellationToken cancellationToken = default)
+    {
+        var query = IncludePlanningDetails(dbContext.Products).AsNoTracking();
+
+        if (filter.ProductTypes.Count > 0)
+        {
+            query = query.Where(x => filter.ProductTypes.Contains(x.Type));
+        }
+
+        foreach (var term in filter.LocationTerms.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var pattern = $"%{term}%";
+            query = query.Where(x =>
+                EF.Functions.ILike(x.Name, pattern) ||
+                (x.PhysicalTownOrCity != null && EF.Functions.ILike(x.PhysicalTownOrCity, pattern)) ||
+                (x.PhysicalStateOrProvince != null && EF.Functions.ILike(x.PhysicalStateOrProvince, pattern)) ||
+                (x.PhysicalCountry != null && EF.Functions.ILike(x.PhysicalCountry, pattern)) ||
+                (x.PhysicalSuburb != null && EF.Functions.ILike(x.PhysicalSuburb, pattern)) ||
+                EF.Functions.ILike(x.Supplier.Name, pattern));
+        }
+
+        var products = await query
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+
+        var searchTerms = filter.SearchTerms
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (searchTerms.Count > 0)
+        {
+            var matchedProducts = products
+                .Where(product => MatchesPlanningSearch(product, searchTerms))
+                .ToList();
+
+            if (matchedProducts.Count > 0)
+            {
+                products = matchedProducts;
+            }
+        }
+
+        return products
+            .Take(filter.MaxResults <= 0 ? 40 : filter.MaxResults)
+            .ToList();
+    }
 
     public async Task<Product> UpdateAsync(Product product, CancellationToken cancellationToken = default)
     {
@@ -56,6 +119,32 @@ public class ProductRepository(AppDbContext dbContext) : IProductRepository
             .Include(x => x.MealBases)
             .Include(x => x.ValidityPeriods)
             .AsSplitQuery();
+
+    private static IQueryable<Product> IncludePlanningDetails(IQueryable<Product> query) =>
+        IncludeDetails(query)
+            .Include(x => x.Supplier)
+            .Include(x => x.Rates);
+
+    private static bool MatchesPlanningSearch(Product product, IReadOnlyList<string> searchTerms)
+    {
+        var searchableValues = new[]
+        {
+            product.Name,
+            product.Inclusions,
+            product.Exclusions,
+            product.Specials,
+            product.Supplier.Name,
+            string.Join(' ', product.Extras.Select(x => x.Description)),
+            string.Join(' ', product.Rooms.Select(x => x.Name)),
+            string.Join(' ', product.RateTypes.Select(x => x.Name)),
+            string.Join(' ', product.RateBases.Select(x => x.Name)),
+            string.Join(' ', product.MealBases.Select(x => x.Name)),
+            string.Join(' ', product.ValidityPeriods.Select(x => x.Value))
+        };
+
+        var haystack = string.Join(' ', searchableValues.Where(x => !string.IsNullOrWhiteSpace(x)));
+        return searchTerms.Any(term => haystack.Contains(term, StringComparison.OrdinalIgnoreCase));
+    }
 
     private static void SyncChildren<TEntity>(
         ICollection<TEntity> existingItems,

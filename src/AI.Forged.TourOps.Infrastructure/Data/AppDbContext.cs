@@ -7,6 +7,10 @@ namespace AI.Forged.TourOps.Infrastructure.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<CustomerKycProfile> CustomerKycProfiles => Set<CustomerKycProfile>();
+    public DbSet<CustomerPreferenceProfile> CustomerPreferenceProfiles => Set<CustomerPreferenceProfile>();
+    public DbSet<CustomerAuditLog> CustomerAuditLogs => Set<CustomerAuditLog>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductContact> ProductContacts => Set<ProductContact>();
     public DbSet<ProductExtra> ProductExtras => Set<ProductExtra>();
@@ -18,10 +22,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Rate> Rates => Set<Rate>();
     public DbSet<Itinerary> Itineraries => Set<Itinerary>();
     public DbSet<ItineraryItem> ItineraryItems => Set<ItineraryItem>();
+    public DbSet<ItineraryDraft> ItineraryDrafts => Set<ItineraryDraft>();
+    public DbSet<ItineraryDraftItem> ItineraryDraftItems => Set<ItineraryDraftItem>();
     public DbSet<Quote> Quotes => Set<Quote>();
     public DbSet<QuoteLineItem> QuoteLineItems => Set<QuoteLineItem>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<BookingItem> BookingItems => Set<BookingItem>();
+    public DbSet<BookingTraveller> BookingTravellers => Set<BookingTraveller>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<InvoiceLineItem> InvoiceLineItems => Set<InvoiceLineItem>();
+    public DbSet<InvoiceAttachment> InvoiceAttachments => Set<InvoiceAttachment>();
+    public DbSet<PaymentRecord> PaymentRecords => Set<PaymentRecord>();
     public DbSet<OperationalTask> Tasks => Set<OperationalTask>();
     public DbSet<OperationalTaskSuggestion> TaskSuggestions => Set<OperationalTaskSuggestion>();
     public DbSet<EmailThread> EmailThreads => Set<EmailThread>();
@@ -44,6 +55,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.HasPostgresEnum<EmailDraftGeneratedBy>();
         modelBuilder.HasPostgresEnum<EmailClassificationType>();
         modelBuilder.HasPostgresEnum<HumanApprovalStatus>();
+        modelBuilder.HasPostgresEnum<ItineraryDraftStatus>();
+        modelBuilder.HasPostgresEnum<InvoiceStatus>();
+        modelBuilder.HasPostgresEnum<PreferredContactMethod>();
+        modelBuilder.HasPostgresEnum<CustomerVerificationStatus>();
+        modelBuilder.HasPostgresEnum<CustomerBudgetBand>();
+        modelBuilder.HasPostgresEnum<TravelPace>();
+        modelBuilder.HasPostgresEnum<TravelValueLeaning>();
 
         modelBuilder.Entity<Supplier>(entity =>
         {
@@ -52,6 +70,90 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(x => x.Email).HasMaxLength(256);
             entity.Property(x => x.Phone).HasMaxLength(50);
             entity.Property(x => x.CreatedAt).IsRequired();
+        });
+
+        modelBuilder.Entity<Customer>(entity =>
+        {
+            entity.ToTable("Customers");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.FirstName).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.LastName).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Email).HasMaxLength(256);
+            entity.Property(x => x.Phone).HasMaxLength(50);
+            entity.Property(x => x.Nationality).HasMaxLength(128);
+            entity.Property(x => x.CountryOfResidence).HasMaxLength(128);
+            entity.Property(x => x.PreferredContactMethod).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Notes).HasMaxLength(4000);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasIndex(x => x.Email);
+            entity.HasIndex(x => x.Phone);
+            entity.HasIndex(x => new { x.LastName, x.FirstName });
+            entity.HasIndex(x => x.CountryOfResidence);
+        });
+
+        modelBuilder.Entity<CustomerKycProfile>(entity =>
+        {
+            entity.ToTable("CustomerKycProfiles");
+            entity.HasKey(x => x.CustomerId);
+            entity.Property(x => x.PassportNumber).HasMaxLength(128);
+            entity.Property(x => x.DocumentReference).HasMaxLength(128);
+            entity.Property(x => x.IssuingCountry).HasMaxLength(128);
+            entity.Property(x => x.VisaNotes).HasMaxLength(4000);
+            entity.Property(x => x.EmergencyContactName).HasMaxLength(200);
+            entity.Property(x => x.EmergencyContactPhone).HasMaxLength(50);
+            entity.Property(x => x.EmergencyContactRelationship).HasMaxLength(128);
+            entity.Property(x => x.VerificationStatus).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.VerificationNotes).HasMaxLength(4000);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasOne(x => x.Customer)
+                .WithOne(x => x.KycProfile)
+                .HasForeignKey<CustomerKycProfile>(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CustomerPreferenceProfile>(entity =>
+        {
+            entity.ToTable("CustomerPreferenceProfiles");
+            entity.HasKey(x => x.CustomerId);
+            entity.Property(x => x.BudgetBand).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.AccommodationPreference).HasMaxLength(256);
+            entity.Property(x => x.RoomPreference).HasMaxLength(256);
+            entity.Property(x => x.DietaryRequirementsJson).HasMaxLength(4000);
+            entity.Property(x => x.ActivityPreferencesJson).HasMaxLength(4000);
+            entity.Property(x => x.AccessibilityRequirementsJson).HasMaxLength(4000);
+            entity.Property(x => x.PaceOfTravel).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.ValueLeaning).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.TransportPreferencesJson).HasMaxLength(4000);
+            entity.Property(x => x.SpecialOccasionsJson).HasMaxLength(4000);
+            entity.Property(x => x.DislikedExperiencesJson).HasMaxLength(4000);
+            entity.Property(x => x.PreferredDestinationsJson).HasMaxLength(4000);
+            entity.Property(x => x.AvoidedDestinationsJson).HasMaxLength(4000);
+            entity.Property(x => x.OperatorNotes).HasMaxLength(4000);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasOne(x => x.Customer)
+                .WithOne(x => x.PreferenceProfile)
+                .HasForeignKey<CustomerPreferenceProfile>(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CustomerAuditLog>(entity =>
+        {
+            entity.ToTable("CustomerAuditLogs");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ActionType).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.ChangedByUserId).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.Summary).HasMaxLength(2000);
+            entity.Property(x => x.ChangedFieldsJson).HasMaxLength(8000);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasIndex(x => x.CustomerId);
+            entity.HasIndex(x => x.CreatedAt);
+            entity.HasOne(x => x.Customer)
+                .WithMany(x => x.AuditLogs)
+                .HasForeignKey(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Product>(entity =>
@@ -208,6 +310,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             entity.HasKey(x => x.Id);
             entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasOne(x => x.LeadCustomer)
+                .WithMany(x => x.LeadItineraries)
+                .HasForeignKey(x => x.LeadCustomerId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<ItineraryItem>(entity =>
@@ -224,6 +330,54 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<ItineraryDraft>(entity =>
+        {
+            entity.ToTable("ItineraryDrafts");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.RequestedByUserId).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.InputJson).HasMaxLength(8000).IsRequired();
+            entity.Property(x => x.CustomerBrief).HasMaxLength(4000);
+            entity.Property(x => x.AssumptionsJson).HasMaxLength(8000);
+            entity.Property(x => x.CaveatsJson).HasMaxLength(8000);
+            entity.Property(x => x.DataGapsJson).HasMaxLength(8000);
+            entity.Property(x => x.LlmProvider).HasMaxLength(128);
+            entity.Property(x => x.LlmModel).HasMaxLength(128);
+            entity.Property(x => x.AuditMetadataJson).HasMaxLength(8000);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.ApprovedByUserId).HasMaxLength(256);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.RequestedByUserId);
+            entity.HasOne(x => x.PersistedItinerary)
+                .WithMany()
+                .HasForeignKey(x => x.PersistedItineraryId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ItineraryDraftItem>(entity =>
+        {
+            entity.ToTable("ItineraryDraftItems");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ProductName).HasMaxLength(200);
+            entity.Property(x => x.SupplierName).HasMaxLength(200);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.Property(x => x.Confidence).HasPrecision(5, 4);
+            entity.Property(x => x.Reason).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.WarningFlagsJson).HasMaxLength(4000);
+            entity.Property(x => x.MissingDataJson).HasMaxLength(4000);
+            entity.HasIndex(x => new { x.ItineraryDraftId, x.DayNumber, x.Sequence });
+            entity.HasOne(x => x.ItineraryDraft)
+                .WithMany(x => x.Items)
+                .HasForeignKey(x => x.ItineraryDraftId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Product)
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
         modelBuilder.Entity<Quote>(entity =>
         {
             entity.HasKey(x => x.Id);
@@ -237,6 +391,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithMany(x => x.Quotes)
                 .HasForeignKey(x => x.ItineraryId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.LeadCustomer)
+                .WithMany(x => x.LeadQuotes)
+                .HasForeignKey(x => x.LeadCustomerId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<QuoteLineItem>(entity =>
@@ -267,6 +425,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithOne(x => x.Booking)
                 .HasForeignKey<Booking>(x => x.QuoteId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.LeadCustomer)
+                .WithMany(x => x.LeadBookings)
+                .HasForeignKey(x => x.LeadCustomerId)
+                .OnDelete(DeleteBehavior.SetNull);
             entity.HasMany(x => x.Tasks)
                 .WithOne(x => x.Booking)
                 .HasForeignKey(x => x.BookingId)
@@ -282,6 +444,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasMany(x => x.EmailDrafts)
                 .WithOne(x => x.Booking)
                 .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BookingTraveller>(entity =>
+        {
+            entity.ToTable("BookingTravellers");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.RelationshipToLeadCustomer).HasMaxLength(128);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasIndex(x => new { x.BookingId, x.CustomerId }).IsUnique();
+            entity.HasOne(x => x.Booking)
+                .WithMany(x => x.Travellers)
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Customer)
+                .WithMany(x => x.BookingTravellers)
+                .HasForeignKey(x => x.CustomerId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -318,6 +498,123 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasMany(x => x.EmailDrafts)
                 .WithOne(x => x.BookingItem)
                 .HasForeignKey(x => x.BookingItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Invoice>(entity =>
+        {
+            entity.ToTable("Invoices");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.SourceSystem).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ExternalSourceReference).HasMaxLength(256);
+            entity.Property(x => x.InvoiceNumber).HasMaxLength(128);
+            entity.Property(x => x.SupplierName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Currency).HasMaxLength(8).IsRequired();
+            entity.Property(x => x.SubtotalAmount).HasPrecision(18, 2);
+            entity.Property(x => x.TaxAmount).HasPrecision(18, 2);
+            entity.Property(x => x.TotalAmount).HasPrecision(18, 2);
+            entity.Property(x => x.RebateAmount).HasPrecision(18, 2);
+            entity.Property(x => x.Notes).HasMaxLength(4000);
+            entity.Property(x => x.RawExtractionPayloadJson).HasMaxLength(16000);
+            entity.Property(x => x.NormalizedSnapshotJson).HasMaxLength(16000);
+            entity.Property(x => x.ExtractionConfidence).HasPrecision(5, 4);
+            entity.Property(x => x.ExtractionIssuesJson).HasMaxLength(8000);
+            entity.Property(x => x.UnresolvedFieldsJson).HasMaxLength(8000);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.Property(x => x.ReceivedAt).IsRequired();
+            entity.HasIndex(x => new { x.SourceSystem, x.ExternalSourceReference }).IsUnique();
+            entity.HasIndex(x => x.InvoiceNumber);
+            entity.HasIndex(x => x.SupplierId);
+            entity.HasIndex(x => x.BookingId);
+            entity.HasIndex(x => x.BookingItemId);
+            entity.HasIndex(x => x.QuoteId);
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.DueDate);
+            entity.HasOne(x => x.Supplier)
+                .WithMany(x => x.Invoices)
+                .HasForeignKey(x => x.SupplierId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.Booking)
+                .WithMany(x => x.Invoices)
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.BookingItem)
+                .WithMany(x => x.Invoices)
+                .HasForeignKey(x => x.BookingItemId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.Quote)
+                .WithMany(x => x.Invoices)
+                .HasForeignKey(x => x.QuoteId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.EmailThread)
+                .WithMany(x => x.Invoices)
+                .HasForeignKey(x => x.EmailThreadId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.ReviewTask)
+                .WithMany()
+                .HasForeignKey(x => x.ReviewTaskId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<InvoiceLineItem>(entity =>
+        {
+            entity.ToTable("InvoiceLineItems");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ExternalLineReference).HasMaxLength(128);
+            entity.Property(x => x.Description).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.Quantity).HasPrecision(18, 2);
+            entity.Property(x => x.UnitPrice).HasPrecision(18, 2);
+            entity.Property(x => x.TaxAmount).HasPrecision(18, 2);
+            entity.Property(x => x.TotalAmount).HasPrecision(18, 2);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.HasIndex(x => x.InvoiceId);
+            entity.HasIndex(x => x.BookingItemId);
+            entity.HasOne(x => x.Invoice)
+                .WithMany(x => x.LineItems)
+                .HasForeignKey(x => x.InvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.BookingItem)
+                .WithMany(x => x.InvoiceLineItems)
+                .HasForeignKey(x => x.BookingItemId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<InvoiceAttachment>(entity =>
+        {
+            entity.ToTable("InvoiceAttachments");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ExternalFileReference).HasMaxLength(256);
+            entity.Property(x => x.FileName).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(128);
+            entity.Property(x => x.SourceUrl).HasMaxLength(2000);
+            entity.Property(x => x.MetadataJson).HasMaxLength(4000);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasIndex(x => x.InvoiceId);
+            entity.HasOne(x => x.Invoice)
+                .WithMany(x => x.Attachments)
+                .HasForeignKey(x => x.InvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PaymentRecord>(entity =>
+        {
+            entity.ToTable("PaymentRecords");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ExternalPaymentReference).HasMaxLength(256);
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
+            entity.Property(x => x.Currency).HasMaxLength(8).IsRequired();
+            entity.Property(x => x.PaymentMethod).HasMaxLength(128);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.Property(x => x.RecordedByUserId).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.MetadataJson).HasMaxLength(4000);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasIndex(x => x.InvoiceId);
+            entity.HasIndex(x => x.PaidAt);
+            entity.HasOne(x => x.Invoice)
+                .WithMany(x => x.PaymentRecords)
+                .HasForeignKey(x => x.InvoiceId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

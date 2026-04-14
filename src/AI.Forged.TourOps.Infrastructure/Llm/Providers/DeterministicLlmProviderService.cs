@@ -21,6 +21,8 @@ public class DeterministicLlmProviderService(IOptions<LlmSettings> settings) : I
             "booking-task-suggestions.generate" => BuildBookingTaskSuggestions(request),
             "email.extract-signals" or "email.classify" or "email.summarize" => BuildEmailSignalResponse(request),
             "email.draft-reply" => BuildDraftReply(request),
+            "itinerary.product-assist" => BuildItineraryProductAssist(request),
+            "itinerary.draft-generate" => BuildItineraryDraft(request),
             "operations.communication-summary" or "operations.booking-state" => BuildSummary(request),
             _ => JsonSerializer.Serialize(new { message = request.Prompt }, JsonOptions)
         };
@@ -222,6 +224,127 @@ public class DeterministicLlmProviderService(IOptions<LlmSettings> settings) : I
         return JsonSerializer.Serialize(new { message = prompt }, JsonOptions);
     }
 
+    private static string BuildItineraryProductAssist(LlmRequest request)
+    {
+        var contextJson = request.Metadata.TryGetValue("contextJson", out var rawContext) ? rawContext : "{}";
+        var context = JsonSerializer.Deserialize<ItineraryPlanningContext>(contextJson, JsonOptions) ?? new ItineraryPlanningContext();
+
+        var ranked = context.Candidates
+            .OrderByDescending(x => x.DeterministicScore)
+            .ThenBy(x => x.ProductName, StringComparer.OrdinalIgnoreCase)
+            .Take(8)
+            .Select(candidate => new
+            {
+                productId = candidate.ProductId,
+                matchScore = Math.Min(1m, candidate.DeterministicScore + 0.05m),
+                reason = candidate.Reasons.FirstOrDefault()
+                    ?? $"Catalog metadata suggests {candidate.ProductName} could fit the request.",
+                warnings = candidate.Warnings,
+                assumptionFlags = candidate.DeterministicScore < 0.55m
+                    ? new[] { "Confidence is limited by available metadata." }
+                    : Array.Empty<string>(),
+                missingData = candidate.MissingData
+            });
+
+        return JsonSerializer.Serialize(ranked, JsonOptions);
+    }
+
+    private static string BuildItineraryDraft(LlmRequest request)
+    {
+        var contextJson = request.Metadata.TryGetValue("contextJson", out var rawContext) ? rawContext : "{}";
+        var context = JsonSerializer.Deserialize<ItineraryPlanningContext>(contextJson, JsonOptions) ?? new ItineraryPlanningContext();
+
+        var hotel = context.Candidates
+            .Where(x => string.Equals(x.ProductType, ProductType.Hotel.ToString(), StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.DeterministicScore)
+            .FirstOrDefault();
+        var tour = context.Candidates
+            .Where(x => string.Equals(x.ProductType, ProductType.Tour.ToString(), StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.DeterministicScore)
+            .FirstOrDefault();
+        var transport = context.Candidates
+            .Where(x => string.Equals(x.ProductType, ProductType.Transport.ToString(), StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.DeterministicScore)
+            .FirstOrDefault();
+
+        var items = new List<object>();
+        for (var day = 1; day <= Math.Max(1, context.Duration); day++)
+        {
+            var sequence = 1;
+
+            if (day == 1)
+            {
+                items.Add(BuildDraftItem(day, sequence++, "Arrival transfer", transport));
+            }
+
+            items.Add(BuildDraftItem(day, sequence++, day == 1 ? "Accommodation check-in" : "Accommodation stay", hotel));
+
+            if (day < Math.Max(1, context.Duration))
+            {
+                items.Add(BuildDraftItem(day, sequence++, $"Suggested activity for day {day}", tour));
+            }
+
+            if (day == Math.Max(1, context.Duration))
+            {
+                items.Add(BuildDraftItem(day, sequence, "Departure transfer", transport));
+            }
+        }
+
+        var dataGaps = new List<string>();
+        if (hotel is null) dataGaps.Add("Hotel product match missing.");
+        if (tour is null) dataGaps.Add("Tour product match missing.");
+        if (transport is null) dataGaps.Add("Transport product match missing.");
+
+        return JsonSerializer.Serialize(new
+        {
+            assumptions = new[]
+            {
+                "Deterministic provider built a simple skeleton itinerary from the top catalog matches."
+            },
+            caveats = new[]
+            {
+                "This draft should be reviewed by an operator before it is saved."
+            },
+            dataGaps,
+            items
+        }, JsonOptions);
+    }
+
+    private static object BuildDraftItem(int day, int sequence, string title, ItineraryCandidate? candidate)
+    {
+        if (candidate is null)
+        {
+            return new
+            {
+                dayNumber = day,
+                sequence,
+                title,
+                productId = (Guid?)null,
+                quantity = 1,
+                notes = "No catalog product was matched automatically.",
+                confidence = 0.35m,
+                reason = "Operator review is required because no suitable product was found in the shortlist.",
+                warnings = new[] { "Product mapping unresolved." },
+                missingData = new[] { "Matching product selection." }
+            };
+        }
+
+        return new
+        {
+            dayNumber = day,
+            sequence,
+            title,
+            productId = candidate.ProductId,
+            quantity = 1,
+            notes = (string?)null,
+            confidence = Math.Min(1m, candidate.DeterministicScore + 0.05m),
+            reason = candidate.Reasons.FirstOrDefault()
+                ?? $"Catalog metadata suggests {candidate.ProductName} is a reasonable fit.",
+            warnings = candidate.Warnings,
+            missingData = candidate.MissingData
+        };
+    }
+
     private sealed class BookingSuggestionContext
     {
         public Guid BookingId { get; set; }
@@ -236,5 +359,22 @@ public class DeterministicLlmProviderService(IOptions<LlmSettings> settings) : I
         public string SupplierName { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string? Notes { get; set; }
+    }
+
+    private sealed class ItineraryPlanningContext
+    {
+        public int Duration { get; set; }
+        public List<ItineraryCandidate> Candidates { get; set; } = [];
+    }
+
+    private sealed class ItineraryCandidate
+    {
+        public Guid ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string ProductType { get; set; } = string.Empty;
+        public decimal DeterministicScore { get; set; }
+        public List<string> Reasons { get; set; } = [];
+        public List<string> Warnings { get; set; } = [];
+        public List<string> MissingData { get; set; } = [];
     }
 }

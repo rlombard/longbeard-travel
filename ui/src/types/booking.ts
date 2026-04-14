@@ -4,6 +4,8 @@ export type BookingItemStatus = 'Pending' | 'Requested' | 'Confirmed' | 'Cancell
 export interface BookingListItem {
   id: string;
   quoteId: string;
+  leadCustomerId?: string | null;
+  leadCustomerName?: string | null;
   status: BookingStatus;
   createdAt: string;
   itemCount: number;
@@ -24,9 +26,20 @@ export interface BookingItem {
 export interface Booking {
   id: string;
   quoteId: string;
+  leadCustomerId?: string | null;
+  leadCustomerName?: string | null;
   status: BookingStatus;
   createdAt: string;
   items: BookingItem[];
+  travellers: BookingTraveller[];
+}
+
+export interface BookingTraveller {
+  customerId: string;
+  customerName: string;
+  relationshipToLeadCustomer?: string | null;
+  notes?: string | null;
+  createdAt: string;
 }
 
 export interface CreateBookingRequest {

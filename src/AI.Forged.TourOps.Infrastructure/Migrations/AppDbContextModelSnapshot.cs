@@ -22,16 +22,23 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "booking_item_status", new[] { "pending", "requested", "confirmed", "cancelled" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "booking_status", new[] { "draft", "confirmed", "cancelled" });
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "customer_budget_band", new[] { "unknown", "economy", "standard", "premium", "luxury" });
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "customer_verification_status", new[] { "not_started", "pending", "verified", "rejected", "expired" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "email_classification_type", new[] { "confirmation_received", "partial_confirmation", "needs_more_information", "pricing_changed", "availability_issue", "no_action_needed", "human_decision_required", "unclear" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "email_direction", new[] { "inbound", "outbound" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "email_draft_generated_by", new[] { "human", "ai" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "email_draft_status", new[] { "draft", "approved", "sent", "rejected" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "human_approval_status", new[] { "pending", "approved", "rejected" });
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "invoice_status", new[] { "draft", "received", "matched", "unmatched", "pending_review", "approved", "rejected", "unpaid", "partially_paid", "paid", "overdue", "rebate_pending", "rebate_applied", "cancelled" });
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "itinerary_draft_status", new[] { "draft", "approved", "rejected" });
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "preferred_contact_method", new[] { "email", "phone", "whats_app", "any" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "pricing_model", new[] { "per_person", "per_group", "per_unit" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "product_type", new[] { "tour", "hotel", "transport" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "quote_status", new[] { "draft", "generated" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "task_status", new[] { "to_do", "waiting", "follow_up", "blocked", "done" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "task_suggestion_state", new[] { "pending_review", "accepted", "rejected" });
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "travel_pace", new[] { "unknown", "relaxed", "balanced", "fast" });
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "travel_value_leaning", new[] { "unknown", "value", "balanced", "luxury" });
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.Booking", b =>
@@ -43,6 +50,9 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("LeadCustomerId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("QuoteId")
                         .HasColumnType("uuid");
 
@@ -52,6 +62,8 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                         .HasColumnType("character varying(32)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("LeadCustomerId");
 
                     b.HasIndex("QuoteId")
                         .IsUnique();
@@ -95,6 +107,278 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                     b.HasIndex("SupplierId");
 
                     b.ToTable("BookingItems");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.BookingTraveller", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("RelationshipToLeadCustomer")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("BookingId", "CustomerId")
+                        .IsUnique();
+
+                    b.ToTable("BookingTravellers", (string)null);
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.Customer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CountryOfResidence")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("DateOfBirth")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Nationality")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PreferredContactMethod")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountryOfResidence");
+
+                    b.HasIndex("Email");
+
+                    b.HasIndex("Phone");
+
+                    b.HasIndex("LastName", "FirstName");
+
+                    b.ToTable("Customers", (string)null);
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.CustomerAuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ChangedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ChangedFieldsJson")
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("CustomerId");
+
+                    b.ToTable("CustomerAuditLogs", (string)null);
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.CustomerKycProfile", b =>
+                {
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DocumentReference")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("EmergencyContactName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("EmergencyContactPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("EmergencyContactRelationship")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("IssuingCountry")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("KycDataConsentGranted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateOnly?>("PassportExpiry")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PassportNumber")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("ProfileDataConsentGranted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VerificationNotes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("VerificationStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("VisaNotes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.HasKey("CustomerId");
+
+                    b.ToTable("CustomerKycProfiles", (string)null);
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.CustomerPreferenceProfile", b =>
+                {
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AccessibilityRequirementsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("AccommodationPreference")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ActivityPreferencesJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("AvoidedDestinationsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("BudgetBand")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DietaryRequirementsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("DislikedExperiencesJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("OperatorNotes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("PaceOfTravel")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("PreferredDestinationsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("RoomPreference")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("SpecialOccasionsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("TransportPreferencesJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ValueLeaning")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("CustomerId");
+
+                    b.ToTable("CustomerPreferenceProfiles", (string)null);
                 });
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.EmailDraft", b =>
@@ -344,6 +628,238 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                     b.ToTable("HumanApprovalRequests", (string)null);
                 });
 
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.Invoice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BookingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BookingItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("EmailThreadId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ExternalSourceReference")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<decimal>("ExtractionConfidence")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)");
+
+                    b.Property<string>("ExtractionIssuesJson")
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<DateOnly>("InvoiceDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("InvoiceNumber")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("NormalizedSnapshotJson")
+                        .HasMaxLength(16000)
+                        .HasColumnType("character varying(16000)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<Guid?>("QuoteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RawExtractionPayloadJson")
+                        .HasMaxLength(16000)
+                        .HasColumnType("character varying(16000)");
+
+                    b.Property<decimal?>("RebateAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime?>("RebateAppliedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("RequiresHumanReview")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("ReviewTaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceSystem")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<decimal>("SubtotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid?>("SupplierId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SupplierName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<decimal>("TaxAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("UnresolvedFieldsJson")
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId");
+
+                    b.HasIndex("BookingItemId");
+
+                    b.HasIndex("DueDate");
+
+                    b.HasIndex("EmailThreadId");
+
+                    b.HasIndex("InvoiceNumber");
+
+                    b.HasIndex("QuoteId");
+
+                    b.HasIndex("ReviewTaskId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("SupplierId");
+
+                    b.HasIndex("SourceSystem", "ExternalSourceReference")
+                        .IsUnique();
+
+                    b.ToTable("Invoices", (string)null);
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.InvoiceAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExternalFileReference")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("InvoiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MetadataJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("SourceUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.ToTable("InvoiceAttachments", (string)null);
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.InvoiceLineItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BookingItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ExternalLineReference")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("InvoiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateOnly?>("ServiceDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("TaxAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingItemId");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.ToTable("InvoiceLineItems", (string)null);
+                });
+
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.Itinerary", b =>
                 {
                     b.Property<Guid>("Id")
@@ -356,12 +872,166 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                     b.Property<int>("Duration")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("LeadCustomerId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("LeadCustomerId");
+
                     b.ToTable("Itineraries");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.ItineraryDraft", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ApprovedByUserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("AssumptionsJson")
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<string>("AuditMetadataJson")
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<string>("CaveatsJson")
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CustomerBrief")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("DataGapsJson")
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<int>("Duration")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("InputJson")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<string>("LlmModel")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("LlmProvider")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid?>("PersistedItineraryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("ProposedStartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("RequestedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PersistedItineraryId");
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("ItineraryDrafts", (string)null);
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.ItineraryDraftItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Confidence")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)");
+
+                    b.Property<int>("DayNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsUnresolved")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ItineraryDraftId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MissingDataJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid?>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProductName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SupplierName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("WarningFlagsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("ItineraryDraftId", "DayNumber", "Sequence");
+
+                    b.ToTable("ItineraryDraftItems", (string)null);
                 });
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.ItineraryItem", b =>
@@ -598,6 +1268,60 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                     b.HasIndex("State");
 
                     b.ToTable("TaskSuggestions", (string)null);
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.PaymentRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<string>("ExternalPaymentReference")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("InvoiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MetadataJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("RecordedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.HasIndex("PaidAt");
+
+                    b.ToTable("PaymentRecords", (string)null);
                 });
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.Product", b =>
@@ -961,6 +1685,9 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                     b.Property<Guid>("ItineraryId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("LeadCustomerId")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal>("Margin")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -981,6 +1708,8 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ItineraryId");
+
+                    b.HasIndex("LeadCustomerId");
 
                     b.ToTable("Quotes");
                 });
@@ -1158,11 +1887,18 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.Booking", b =>
                 {
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Customer", "LeadCustomer")
+                        .WithMany("LeadBookings")
+                        .HasForeignKey("LeadCustomerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("AI.Forged.TourOps.Domain.Entities.Quote", "Quote")
                         .WithOne("Booking")
                         .HasForeignKey("AI.Forged.TourOps.Domain.Entities.Booking", "QuoteId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("LeadCustomer");
 
                     b.Navigation("Quote");
                 });
@@ -1192,6 +1928,58 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.BookingTraveller", b =>
+                {
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Booking", "Booking")
+                        .WithMany("Travellers")
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Customer", "Customer")
+                        .WithMany("BookingTravellers")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.CustomerAuditLog", b =>
+                {
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Customer", "Customer")
+                        .WithMany("AuditLogs")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.CustomerKycProfile", b =>
+                {
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Customer", "Customer")
+                        .WithOne("KycProfile")
+                        .HasForeignKey("AI.Forged.TourOps.Domain.Entities.CustomerKycProfile", "CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.CustomerPreferenceProfile", b =>
+                {
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Customer", "Customer")
+                        .WithOne("PreferenceProfile")
+                        .HasForeignKey("AI.Forged.TourOps.Domain.Entities.CustomerPreferenceProfile", "CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
                 });
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.EmailDraft", b =>
@@ -1244,6 +2032,118 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                     b.Navigation("Booking");
 
                     b.Navigation("BookingItem");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.Invoice", b =>
+                {
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Booking", "Booking")
+                        .WithMany("Invoices")
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.BookingItem", "BookingItem")
+                        .WithMany("Invoices")
+                        .HasForeignKey("BookingItemId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.EmailThread", "EmailThread")
+                        .WithMany("Invoices")
+                        .HasForeignKey("EmailThreadId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Quote", "Quote")
+                        .WithMany("Invoices")
+                        .HasForeignKey("QuoteId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.OperationalTask", "ReviewTask")
+                        .WithMany()
+                        .HasForeignKey("ReviewTaskId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Supplier", "Supplier")
+                        .WithMany("Invoices")
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("BookingItem");
+
+                    b.Navigation("EmailThread");
+
+                    b.Navigation("Quote");
+
+                    b.Navigation("ReviewTask");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.InvoiceAttachment", b =>
+                {
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Invoice", "Invoice")
+                        .WithMany("Attachments")
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Invoice");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.InvoiceLineItem", b =>
+                {
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.BookingItem", "BookingItem")
+                        .WithMany("InvoiceLineItems")
+                        .HasForeignKey("BookingItemId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Invoice", "Invoice")
+                        .WithMany("LineItems")
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BookingItem");
+
+                    b.Navigation("Invoice");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.Itinerary", b =>
+                {
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Customer", "LeadCustomer")
+                        .WithMany("LeadItineraries")
+                        .HasForeignKey("LeadCustomerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("LeadCustomer");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.ItineraryDraft", b =>
+                {
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Itinerary", "PersistedItinerary")
+                        .WithMany()
+                        .HasForeignKey("PersistedItineraryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("PersistedItinerary");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.ItineraryDraftItem", b =>
+                {
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.ItineraryDraft", "ItineraryDraft")
+                        .WithMany("Items")
+                        .HasForeignKey("ItineraryDraftId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ItineraryDraft");
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.ItineraryItem", b =>
@@ -1305,6 +2205,17 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                     b.Navigation("Booking");
 
                     b.Navigation("BookingItem");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.PaymentRecord", b =>
+                {
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Invoice", "Invoice")
+                        .WithMany("PaymentRecords")
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Invoice");
                 });
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.Product", b =>
@@ -1403,7 +2314,14 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.Customer", "LeadCustomer")
+                        .WithMany("LeadQuotes")
+                        .HasForeignKey("LeadCustomerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Itinerary");
+
+                    b.Navigation("LeadCustomer");
                 });
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.QuoteLineItem", b =>
@@ -1449,11 +2367,15 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
 
                     b.Navigation("EmailThreads");
 
+                    b.Navigation("Invoices");
+
                     b.Navigation("Items");
 
                     b.Navigation("SuggestedTasks");
 
                     b.Navigation("Tasks");
+
+                    b.Navigation("Travellers");
                 });
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.BookingItem", b =>
@@ -1462,16 +2384,48 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
 
                     b.Navigation("EmailThreads");
 
+                    b.Navigation("InvoiceLineItems");
+
+                    b.Navigation("Invoices");
+
                     b.Navigation("SuggestedTasks");
 
                     b.Navigation("Tasks");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.Customer", b =>
+                {
+                    b.Navigation("AuditLogs");
+
+                    b.Navigation("BookingTravellers");
+
+                    b.Navigation("KycProfile");
+
+                    b.Navigation("LeadBookings");
+
+                    b.Navigation("LeadItineraries");
+
+                    b.Navigation("LeadQuotes");
+
+                    b.Navigation("PreferenceProfile");
                 });
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.EmailThread", b =>
                 {
                     b.Navigation("Drafts");
 
+                    b.Navigation("Invoices");
+
                     b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.Invoice", b =>
+                {
+                    b.Navigation("Attachments");
+
+                    b.Navigation("LineItems");
+
+                    b.Navigation("PaymentRecords");
                 });
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.Itinerary", b =>
@@ -1479,6 +2433,11 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Quotes");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.ItineraryDraft", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.OperationalTask", b =>
@@ -1514,11 +2473,15 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                 {
                     b.Navigation("Booking");
 
+                    b.Navigation("Invoices");
+
                     b.Navigation("LineItems");
                 });
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.Supplier", b =>
                 {
+                    b.Navigation("Invoices");
+
                     b.Navigation("Products");
                 });
 #pragma warning restore 612, 618

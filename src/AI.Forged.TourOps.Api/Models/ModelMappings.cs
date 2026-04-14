@@ -1,4 +1,7 @@
 using AI.Forged.TourOps.Application.Models;
+using AI.Forged.TourOps.Application.Models.Customers;
+using AI.Forged.TourOps.Application.Models.Itineraries;
+using AI.Forged.TourOps.Application.Models.Invoices;
 using AI.Forged.TourOps.Domain.Entities;
 using AI.Forged.TourOps.Domain.Enums;
 
@@ -388,6 +391,8 @@ public static class ModelMappings
     public static ItineraryResponse ToResponse(this Itinerary itinerary) => new()
     {
         Id = itinerary.Id,
+        LeadCustomerId = itinerary.LeadCustomerId,
+        LeadCustomerName = itinerary.LeadCustomer is null ? null : $"{itinerary.LeadCustomer.FirstName} {itinerary.LeadCustomer.LastName}".Trim(),
         StartDate = itinerary.StartDate,
         Duration = itinerary.Duration,
         CreatedAt = itinerary.CreatedAt,
@@ -405,6 +410,8 @@ public static class ModelMappings
     {
         Id = quote.Id,
         ItineraryId = quote.ItineraryId,
+        LeadCustomerId = quote.LeadCustomerId,
+        LeadCustomerName = quote.LeadCustomer is null ? null : $"{quote.LeadCustomer.FirstName} {quote.LeadCustomer.LastName}".Trim(),
         TotalCost = quote.TotalCost,
         TotalPrice = quote.TotalPrice,
         Margin = quote.Margin,
@@ -426,6 +433,8 @@ public static class ModelMappings
     {
         Id = booking.Id,
         QuoteId = booking.QuoteId,
+        LeadCustomerId = booking.LeadCustomerId,
+        LeadCustomerName = booking.LeadCustomer is null ? null : $"{booking.LeadCustomer.FirstName} {booking.LeadCustomer.LastName}".Trim(),
         Status = booking.Status,
         CreatedAt = booking.CreatedAt,
         ItemCount = booking.Items.Count
@@ -435,9 +444,19 @@ public static class ModelMappings
     {
         Id = booking.Id,
         QuoteId = booking.QuoteId,
+        LeadCustomerId = booking.LeadCustomerId,
+        LeadCustomerName = booking.LeadCustomer is null ? null : $"{booking.LeadCustomer.FirstName} {booking.LeadCustomer.LastName}".Trim(),
         Status = booking.Status,
         CreatedAt = booking.CreatedAt,
-        Items = booking.Items.Select(x => x.ToResponse()).ToList()
+        Items = booking.Items.Select(x => x.ToResponse()).ToList(),
+        Travellers = booking.Travellers.Select(x => new BookingTravellerResponse
+        {
+            CustomerId = x.CustomerId,
+            CustomerName = $"{x.Customer.FirstName} {x.Customer.LastName}".Trim(),
+            RelationshipToLeadCustomer = x.RelationshipToLeadCustomer,
+            Notes = x.Notes,
+            CreatedAt = x.CreatedAt
+        }).ToList()
     };
 
     public static BookingItemResponse ToResponse(this BookingItem bookingItem) => new()
@@ -558,5 +577,478 @@ public static class ModelMappings
         ChildDiscount = request.ChildDiscount,
         SingleSupplement = request.SingleSupplement,
         Capacity = request.Capacity
+    };
+
+    public static CreateItineraryModel ToModel(this CreateItineraryRequest request) => new()
+    {
+        StartDate = request.StartDate,
+        Duration = request.Duration,
+        Items = request.Items.Select(x => new CreateItineraryItemModel
+        {
+            DayNumber = x.DayNumber,
+            ProductId = x.ProductId,
+            Quantity = x.Quantity,
+            Notes = x.Notes
+        }).ToList()
+    };
+
+    public static ItineraryResponse ToResponse(this ItineraryModel itinerary) => new()
+    {
+        Id = itinerary.Id,
+        LeadCustomerId = itinerary.LeadCustomerId,
+        LeadCustomerName = itinerary.LeadCustomerName,
+        StartDate = itinerary.StartDate,
+        Duration = itinerary.Duration,
+        CreatedAt = itinerary.CreatedAt,
+        Items = itinerary.Items.Select(item => new ItineraryItemResponse
+        {
+            Id = item.Id,
+            DayNumber = item.DayNumber,
+            ProductId = item.ProductId,
+            Quantity = item.Quantity,
+            Notes = item.Notes
+        }).ToList()
+    };
+
+    public static ItineraryProductAssistRequest ToModel(this ProductAssistRequest request) => new()
+    {
+        Destination = request.Destination,
+        Region = request.Region,
+        StartDate = request.StartDate,
+        EndDate = request.EndDate,
+        Season = request.Season,
+        TravellerCount = request.TravellerCount,
+        BudgetLevel = request.BudgetLevel,
+        PreferredCurrency = request.PreferredCurrency,
+        TravelStyle = request.TravelStyle,
+        Interests = request.Interests,
+        AccommodationPreference = request.AccommodationPreference,
+        SpecialConstraints = request.SpecialConstraints,
+        ProductTypes = request.ProductTypes,
+        CustomerBrief = request.CustomerBrief,
+        MaxResults = request.MaxResults
+    };
+
+    public static ProductAssistResponse ToResponse(this ItineraryProductAssistResult result) => new()
+    {
+        CandidateCount = result.CandidateCount,
+        ReturnedCount = result.ReturnedCount,
+        Assumptions = result.Assumptions.ToList(),
+        Recommendations = result.Recommendations.Select(x => new ProductRecommendationResponse
+        {
+            ProductId = x.ProductId,
+            ProductName = x.ProductName,
+            SupplierName = x.SupplierName,
+            ProductType = x.ProductType,
+            MatchScore = x.MatchScore,
+            Reason = x.Reason,
+            Warnings = x.Warnings.ToList(),
+            AssumptionFlags = x.AssumptionFlags.ToList(),
+            MissingData = x.MissingData.ToList()
+        }).ToList()
+    };
+
+    public static GenerateItineraryDraftRequest ToModel(this GenerateItineraryDraftRequestDto request) => new()
+    {
+        Destination = request.Destination,
+        Region = request.Region,
+        StartDate = request.StartDate,
+        EndDate = request.EndDate,
+        Duration = request.Duration,
+        Season = request.Season,
+        TravellerCount = request.TravellerCount,
+        BudgetLevel = request.BudgetLevel,
+        PreferredCurrency = request.PreferredCurrency,
+        TravelStyle = request.TravelStyle,
+        Interests = request.Interests,
+        AccommodationPreference = request.AccommodationPreference,
+        SpecialConstraints = request.SpecialConstraints,
+        CustomerBrief = request.CustomerBrief
+    };
+
+    public static ItineraryDraftResponse ToResponse(this ItineraryDraftModel draft) => new()
+    {
+        Id = draft.Id,
+        Status = draft.Status,
+        ProposedStartDate = draft.ProposedStartDate,
+        Duration = draft.Duration,
+        CustomerBrief = draft.CustomerBrief,
+        LlmProvider = draft.LlmProvider,
+        LlmModel = draft.LlmModel,
+        PersistedItineraryId = draft.PersistedItineraryId,
+        CreatedAt = draft.CreatedAt,
+        UpdatedAt = draft.UpdatedAt,
+        ApprovedAt = draft.ApprovedAt,
+        Assumptions = draft.Assumptions.ToList(),
+        Caveats = draft.Caveats.ToList(),
+        DataGaps = draft.DataGaps.ToList(),
+        Items = draft.Items.Select(x => new ItineraryDraftItemResponse
+        {
+            Id = x.Id,
+            DayNumber = x.DayNumber,
+            Sequence = x.Sequence,
+            Title = x.Title,
+            ProductId = x.ProductId,
+            ProductName = x.ProductName,
+            SupplierName = x.SupplierName,
+            Quantity = x.Quantity,
+            Notes = x.Notes,
+            Confidence = x.Confidence,
+            Reason = x.Reason,
+            IsUnresolved = x.IsUnresolved,
+            Warnings = x.Warnings.ToList(),
+            MissingData = x.MissingData.ToList()
+        }).ToList()
+    };
+
+    public static ApproveItineraryDraftRequest ToModel(this ApproveItineraryDraftRequestDto request) => new()
+    {
+        StartDate = request.StartDate,
+        Duration = request.Duration,
+        DecisionNotes = request.DecisionNotes,
+        Items = request.Items.Select(x => new ApproveItineraryDraftItemModel
+        {
+            DayNumber = x.DayNumber,
+            ProductId = x.ProductId,
+            Quantity = x.Quantity,
+            Notes = x.Notes
+        }).ToList()
+    };
+
+    public static ItineraryDraftApprovalResponse ToResponse(this ItineraryDraftApprovalResult result) => new()
+    {
+        DraftId = result.DraftId,
+        ApprovalRequestId = result.ApprovalRequestId,
+        ApprovedAt = result.ApprovedAt,
+        Itinerary = result.Itinerary.ToResponse()
+    };
+
+    public static InvoiceIngestionRequestModel ToModel(this InvoiceIngestionRequest request) => new()
+    {
+        SourceSystem = request.SourceSystem,
+        ExternalSourceReference = request.ExternalSourceReference,
+        InvoiceNumber = request.InvoiceNumber,
+        SupplierId = request.SupplierId,
+        SupplierReference = request.SupplierReference,
+        SupplierName = request.SupplierName,
+        BookingId = request.BookingId,
+        BookingReference = request.BookingReference,
+        BookingItemId = request.BookingItemId,
+        BookingItemReference = request.BookingItemReference,
+        QuoteId = request.QuoteId,
+        QuoteReference = request.QuoteReference,
+        EmailThreadId = request.EmailThreadId,
+        InvoiceDate = request.InvoiceDate,
+        DueDate = request.DueDate,
+        Currency = request.Currency,
+        SubtotalAmount = request.SubtotalAmount,
+        TaxAmount = request.TaxAmount,
+        TotalAmount = request.TotalAmount,
+        RebateAmount = request.RebateAmount,
+        Notes = request.Notes,
+        RawExtractionPayloadJson = request.RawExtractionPayloadJson,
+        SourceSnapshotJson = request.SourceSnapshotJson,
+        ExtractionConfidence = request.ExtractionConfidence,
+        ExtractionIssues = request.ExtractionIssues,
+        UnresolvedFields = request.UnresolvedFields,
+        LineItems = request.LineItems.Select(x => new InvoiceLineItemInputModel
+        {
+            ExternalLineReference = x.ExternalLineReference,
+            BookingItemId = x.BookingItemId,
+            BookingItemReference = x.BookingItemReference,
+            Description = x.Description,
+            ServiceDate = x.ServiceDate,
+            Quantity = x.Quantity,
+            UnitPrice = x.UnitPrice,
+            TaxAmount = x.TaxAmount,
+            TotalAmount = x.TotalAmount,
+            Notes = x.Notes
+        }).ToList(),
+        Attachments = request.Attachments.Select(x => new InvoiceAttachmentInputModel
+        {
+            ExternalFileReference = x.ExternalFileReference,
+            FileName = x.FileName,
+            ContentType = x.ContentType,
+            SourceUrl = x.SourceUrl,
+            MetadataJson = x.MetadataJson
+        }).ToList()
+    };
+
+    public static InvoiceIngestionResponse ToResponse(this InvoiceIngestionResultModel result) => new()
+    {
+        InvoiceId = result.InvoiceId,
+        WasExisting = result.WasExisting,
+        SupplierId = result.SupplierId,
+        BookingId = result.BookingId,
+        BookingItemId = result.BookingItemId,
+        QuoteId = result.QuoteId,
+        EmailThreadId = result.EmailThreadId,
+        ReviewTaskId = result.ReviewTaskId,
+        FinalStatus = result.FinalStatus,
+        UnresolvedFields = result.UnresolvedFields.ToList(),
+        Warnings = result.Warnings.ToList()
+    };
+
+    public static InvoiceResponse ToResponse(this InvoiceModel invoice) => new()
+    {
+        Id = invoice.Id,
+        SourceSystem = invoice.SourceSystem,
+        ExternalSourceReference = invoice.ExternalSourceReference,
+        InvoiceNumber = invoice.InvoiceNumber,
+        SupplierId = invoice.SupplierId,
+        SupplierName = invoice.SupplierName,
+        BookingId = invoice.BookingId,
+        BookingItemId = invoice.BookingItemId,
+        QuoteId = invoice.QuoteId,
+        EmailThreadId = invoice.EmailThreadId,
+        ReviewTaskId = invoice.ReviewTaskId,
+        InvoiceDate = invoice.InvoiceDate,
+        DueDate = invoice.DueDate,
+        Currency = invoice.Currency,
+        SubtotalAmount = invoice.SubtotalAmount,
+        TaxAmount = invoice.TaxAmount,
+        TotalAmount = invoice.TotalAmount,
+        RebateAmount = invoice.RebateAmount,
+        AmountPaid = invoice.AmountPaid,
+        OutstandingAmount = invoice.OutstandingAmount,
+        Notes = invoice.Notes,
+        ExtractionConfidence = invoice.ExtractionConfidence,
+        ExtractionIssues = invoice.ExtractionIssues.ToList(),
+        UnresolvedFields = invoice.UnresolvedFields.ToList(),
+        RequiresHumanReview = invoice.RequiresHumanReview,
+        Status = invoice.Status,
+        ReceivedAt = invoice.ReceivedAt,
+        CreatedAt = invoice.CreatedAt,
+        UpdatedAt = invoice.UpdatedAt,
+        LineItems = invoice.LineItems.Select(x => new InvoiceLineItemResponse
+        {
+            Id = x.Id,
+            BookingItemId = x.BookingItemId,
+            Description = x.Description,
+            ServiceDate = x.ServiceDate,
+            Quantity = x.Quantity,
+            UnitPrice = x.UnitPrice,
+            TaxAmount = x.TaxAmount,
+            TotalAmount = x.TotalAmount,
+            Notes = x.Notes
+        }).ToList(),
+        Attachments = invoice.Attachments.Select(x => new InvoiceAttachmentResponse
+        {
+            Id = x.Id,
+            ExternalFileReference = x.ExternalFileReference,
+            FileName = x.FileName,
+            ContentType = x.ContentType,
+            SourceUrl = x.SourceUrl,
+            CreatedAt = x.CreatedAt
+        }).ToList(),
+        PaymentRecords = invoice.PaymentRecords.Select(x => new PaymentRecordResponse
+        {
+            Id = x.Id,
+            ExternalPaymentReference = x.ExternalPaymentReference,
+            Amount = x.Amount,
+            Currency = x.Currency,
+            PaidAt = x.PaidAt,
+            PaymentMethod = x.PaymentMethod,
+            Notes = x.Notes,
+            RecordedByUserId = x.RecordedByUserId,
+            CreatedAt = x.CreatedAt
+        }).ToList()
+    };
+
+    public static InvoiceListResponse ToResponse(this InvoiceListItemModel invoice) => new()
+    {
+        Id = invoice.Id,
+        InvoiceNumber = invoice.InvoiceNumber,
+        SupplierName = invoice.SupplierName,
+        SupplierId = invoice.SupplierId,
+        BookingId = invoice.BookingId,
+        BookingItemId = invoice.BookingItemId,
+        InvoiceDate = invoice.InvoiceDate,
+        DueDate = invoice.DueDate,
+        Currency = invoice.Currency,
+        TotalAmount = invoice.TotalAmount,
+        AmountPaid = invoice.AmountPaid,
+        OutstandingAmount = invoice.OutstandingAmount,
+        RequiresHumanReview = invoice.RequiresHumanReview,
+        Status = invoice.Status
+    };
+
+    public static UpdateInvoiceStatusModel ToModel(this UpdateInvoiceStatusRequest request) => new()
+    {
+        Status = request.Status,
+        Notes = request.Notes
+    };
+
+    public static RelinkInvoiceModel ToModel(this RelinkInvoiceRequest request) => new()
+    {
+        SupplierId = request.SupplierId,
+        SupplierName = request.SupplierName,
+        BookingId = request.BookingId,
+        BookingItemId = request.BookingItemId,
+        QuoteId = request.QuoteId,
+        EmailThreadId = request.EmailThreadId,
+        Notes = request.Notes
+    };
+
+    public static RecordInvoicePaymentModel ToModel(this RecordInvoicePaymentRequest request) => new()
+    {
+        ExternalPaymentReference = request.ExternalPaymentReference,
+        Amount = request.Amount,
+        Currency = request.Currency,
+        PaidAt = request.PaidAt,
+        PaymentMethod = request.PaymentMethod,
+        Notes = request.Notes,
+        MetadataJson = request.MetadataJson
+    };
+
+    public static ApplyInvoiceRebateModel ToModel(this ApplyInvoiceRebateRequest request) => new()
+    {
+        Notes = request.Notes
+    };
+
+    public static CustomerCreateModel ToCreateModel(this CustomerRequest request) => new()
+    {
+        FirstName = request.FirstName,
+        LastName = request.LastName,
+        Email = request.Email,
+        Phone = request.Phone,
+        Nationality = request.Nationality,
+        CountryOfResidence = request.CountryOfResidence,
+        DateOfBirth = request.DateOfBirth,
+        PreferredContactMethod = request.PreferredContactMethod,
+        Notes = request.Notes
+    };
+
+    public static CustomerUpdateModel ToUpdateModel(this CustomerRequest request) => new()
+    {
+        FirstName = request.FirstName,
+        LastName = request.LastName,
+        Email = request.Email,
+        Phone = request.Phone,
+        Nationality = request.Nationality,
+        CountryOfResidence = request.CountryOfResidence,
+        DateOfBirth = request.DateOfBirth,
+        PreferredContactMethod = request.PreferredContactMethod,
+        Notes = request.Notes
+    };
+
+    public static CustomerKycUpdateModel ToModel(this CustomerKycRequest request) => new()
+    {
+        PassportNumber = request.PassportNumber,
+        DocumentReference = request.DocumentReference,
+        PassportExpiry = request.PassportExpiry,
+        IssuingCountry = request.IssuingCountry,
+        VisaNotes = request.VisaNotes,
+        EmergencyContactName = request.EmergencyContactName,
+        EmergencyContactPhone = request.EmergencyContactPhone,
+        EmergencyContactRelationship = request.EmergencyContactRelationship,
+        VerificationStatus = request.VerificationStatus,
+        VerificationNotes = request.VerificationNotes,
+        ProfileDataConsentGranted = request.ProfileDataConsentGranted,
+        KycDataConsentGranted = request.KycDataConsentGranted
+    };
+
+    public static CustomerPreferenceUpdateModel ToModel(this CustomerPreferenceRequest request) => new()
+    {
+        BudgetBand = request.BudgetBand,
+        AccommodationPreference = request.AccommodationPreference,
+        RoomPreference = request.RoomPreference,
+        DietaryRequirements = request.DietaryRequirements,
+        ActivityPreferences = request.ActivityPreferences,
+        AccessibilityRequirements = request.AccessibilityRequirements,
+        PaceOfTravel = request.PaceOfTravel,
+        ValueLeaning = request.ValueLeaning,
+        TransportPreferences = request.TransportPreferences,
+        SpecialOccasions = request.SpecialOccasions,
+        DislikedExperiences = request.DislikedExperiences,
+        PreferredDestinations = request.PreferredDestinations,
+        AvoidedDestinations = request.AvoidedDestinations,
+        OperatorNotes = request.OperatorNotes
+    };
+
+    public static BookingTravellerUpsertModel ToModel(this BookingTravellerRequest request) => new()
+    {
+        RelationshipToLeadCustomer = request.RelationshipToLeadCustomer,
+        Notes = request.Notes
+    };
+
+    public static CustomerListItemResponse ToResponse(this CustomerListItemModel customer) => new()
+    {
+        Id = customer.Id,
+        FullName = customer.FullName,
+        Email = customer.Email,
+        Phone = customer.Phone,
+        Nationality = customer.Nationality,
+        CountryOfResidence = customer.CountryOfResidence,
+        PreferredContactMethod = customer.PreferredContactMethod,
+        UpdatedAt = customer.UpdatedAt
+    };
+
+    public static CustomerResponse ToResponse(this CustomerModel customer) => new()
+    {
+        Id = customer.Id,
+        FirstName = customer.FirstName,
+        LastName = customer.LastName,
+        FullName = customer.FullName,
+        Email = customer.Email,
+        Phone = customer.Phone,
+        Nationality = customer.Nationality,
+        CountryOfResidence = customer.CountryOfResidence,
+        DateOfBirth = customer.DateOfBirth,
+        PreferredContactMethod = customer.PreferredContactMethod,
+        Notes = customer.Notes,
+        CreatedAt = customer.CreatedAt,
+        UpdatedAt = customer.UpdatedAt,
+        Kyc = new CustomerKycResponse
+        {
+            PassportNumber = customer.Kyc.PassportNumber,
+            DocumentReference = customer.Kyc.DocumentReference,
+            PassportExpiry = customer.Kyc.PassportExpiry,
+            IssuingCountry = customer.Kyc.IssuingCountry,
+            VisaNotes = customer.Kyc.VisaNotes,
+            EmergencyContactName = customer.Kyc.EmergencyContactName,
+            EmergencyContactPhone = customer.Kyc.EmergencyContactPhone,
+            EmergencyContactRelationship = customer.Kyc.EmergencyContactRelationship,
+            VerificationStatus = customer.Kyc.VerificationStatus,
+            VerificationNotes = customer.Kyc.VerificationNotes,
+            ProfileDataConsentGranted = customer.Kyc.ProfileDataConsentGranted,
+            KycDataConsentGranted = customer.Kyc.KycDataConsentGranted,
+            UpdatedAt = customer.Kyc.UpdatedAt
+        },
+        Preferences = new CustomerPreferenceResponse
+        {
+            BudgetBand = customer.Preferences.BudgetBand,
+            AccommodationPreference = customer.Preferences.AccommodationPreference,
+            RoomPreference = customer.Preferences.RoomPreference,
+            DietaryRequirements = customer.Preferences.DietaryRequirements.ToList(),
+            ActivityPreferences = customer.Preferences.ActivityPreferences.ToList(),
+            AccessibilityRequirements = customer.Preferences.AccessibilityRequirements.ToList(),
+            PaceOfTravel = customer.Preferences.PaceOfTravel,
+            ValueLeaning = customer.Preferences.ValueLeaning,
+            TransportPreferences = customer.Preferences.TransportPreferences.ToList(),
+            SpecialOccasions = customer.Preferences.SpecialOccasions.ToList(),
+            DislikedExperiences = customer.Preferences.DislikedExperiences.ToList(),
+            PreferredDestinations = customer.Preferences.PreferredDestinations.ToList(),
+            AvoidedDestinations = customer.Preferences.AvoidedDestinations.ToList(),
+            OperatorNotes = customer.Preferences.OperatorNotes,
+            UpdatedAt = customer.Preferences.UpdatedAt
+        },
+        LeadQuoteIds = customer.LeadQuoteIds.ToList(),
+        LeadItineraryIds = customer.LeadItineraryIds.ToList(),
+        LeadBookingIds = customer.LeadBookingIds.ToList(),
+        TravellerBookings = customer.TravellerBookings.Select(x => new BookingTravellerLinkResponse
+        {
+            BookingId = x.BookingId,
+            RelationshipToLeadCustomer = x.RelationshipToLeadCustomer,
+            Notes = x.Notes,
+            CreatedAt = x.CreatedAt
+        }).ToList()
+    };
+
+    public static CustomerLinkResponse ToResponse(this CustomerLinkResultModel result) => new()
+    {
+        CustomerId = result.CustomerId,
+        TargetId = result.TargetId,
+        TargetType = result.TargetType
     };
 }

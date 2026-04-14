@@ -36,8 +36,10 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<AnthropicLlmProviderService>();
 
         services.AddScoped<ISupplierRepository, SupplierRepository>();
+        services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IRateRepository, RateRepository>();
+        services.AddScoped<IInvoiceRepository, InvoiceRepository>();
         services.AddScoped<IItineraryRepository, ItineraryRepository>();
         services.AddScoped<IQuoteRepository, QuoteRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();

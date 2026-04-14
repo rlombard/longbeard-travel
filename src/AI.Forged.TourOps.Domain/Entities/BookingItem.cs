@@ -19,4 +19,6 @@ public class BookingItem
     public ICollection<OperationalTaskSuggestion> SuggestedTasks { get; set; } = new List<OperationalTaskSuggestion>();
     public ICollection<EmailThread> EmailThreads { get; set; } = new List<EmailThread>();
     public ICollection<EmailDraft> EmailDrafts { get; set; } = new List<EmailDraft>();
+    public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
+    public ICollection<InvoiceLineItem> InvoiceLineItems { get; set; } = new List<InvoiceLineItem>();
 }

@@ -9,5 +9,6 @@ public interface IBookingRepository
     Task<IReadOnlyList<Booking>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<Booking?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Booking?> GetByQuoteIdAsync(Guid quoteId, CancellationToken cancellationToken = default);
+    Task UpdateLeadCustomerAsync(Guid id, Guid? customerId, CancellationToken cancellationToken = default);
     Task UpdateStatusAsync(Guid id, BookingStatus status, CancellationToken cancellationToken = default);
 }

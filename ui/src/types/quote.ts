@@ -10,6 +10,8 @@ export interface QuoteLineItem {
 export interface Quote {
   id: string;
   itineraryId: string;
+  leadCustomerId?: string | null;
+  leadCustomerName?: string | null;
   totalCost: number;
   totalPrice: number;
   margin: number;

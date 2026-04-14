@@ -15,4 +15,5 @@ public class EmailThread
     public BookingItem? BookingItem { get; set; }
     public ICollection<EmailMessage> Messages { get; set; } = new List<EmailMessage>();
     public ICollection<EmailDraft> Drafts { get; set; } = new List<EmailDraft>();
+    public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 }

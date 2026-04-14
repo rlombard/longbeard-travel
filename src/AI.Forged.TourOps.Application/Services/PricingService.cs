@@ -50,6 +50,7 @@ public class PricingService(IItineraryRepository itineraryRepository, IRateRepos
         {
             Id = Guid.NewGuid(),
             ItineraryId = itinerary.Id,
+            LeadCustomerId = itinerary.LeadCustomerId,
             Currency = request.Currency,
             Status = QuoteStatus.Generated,
             TotalCost = decimal.Round(totalCost, 2),
