@@ -13,6 +13,7 @@ using AI.Forged.TourOps.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace AI.Forged.TourOps.Infrastructure;
 
@@ -25,15 +26,45 @@ public static class ServiceCollectionExtensions
 
         services.Configure<AiForgedSettings>(configuration.GetSection("AiForgedSettings"));
         services.Configure<LlmSettings>(configuration.GetSection("LlmSettings"));
+        services.Configure<KeycloakAdminSettings>(configuration.GetSection("KeycloakAdmin"));
         services.Configure<OpenAiSettings>(configuration.GetSection("OpenAiSettings"));
         services.Configure<AzureOpenAiSettings>(configuration.GetSection("AzureOpenAiSettings"));
         services.Configure<AnthropicSettings>(configuration.GetSection("AnthropicSettings"));
+        services.Configure<GrokSettings>(configuration.GetSection("GrokSettings"));
         services.Configure<EmailWorkflowSettings>(configuration.GetSection("EmailWorkflow"));
+        services.AddOptions<EmailIntegrationSettings>()
+            .Bind(configuration.GetSection("EmailIntegration"))
+            .ValidateDataAnnotations()
+            .Validate(
+                settings => !settings.Enabled || IsValidBase64Key(settings.EncryptionKey),
+                "EmailIntegration:EncryptionKey must be a valid base64-encoded 32-byte key when email integrations are enabled.")
+            .ValidateOnStart();
+        services.AddOptions<MicrosoftEmailProviderSettings>()
+            .Bind(configuration.GetSection("EmailProviders:Microsoft365"))
+            .Validate(
+                settings => !settings.Enabled || (!string.IsNullOrWhiteSpace(settings.ClientId) && !string.IsNullOrWhiteSpace(settings.ClientSecret) && !string.IsNullOrWhiteSpace(settings.RedirectUri)),
+                "EmailProviders:Microsoft365 requires ClientId, ClientSecret, and RedirectUri when enabled.")
+            .ValidateOnStart();
+        services.AddOptions<GoogleEmailProviderSettings>()
+            .Bind(configuration.GetSection("EmailProviders:Gmail"))
+            .Validate(
+                settings => !settings.Enabled || (!string.IsNullOrWhiteSpace(settings.ClientId) && !string.IsNullOrWhiteSpace(settings.ClientSecret) && !string.IsNullOrWhiteSpace(settings.RedirectUri)),
+                "EmailProviders:Gmail requires ClientId, ClientSecret, and RedirectUri when enabled.")
+            .ValidateOnStart();
+        services.AddOptions<SendGridEmailProviderSettings>()
+            .Bind(configuration.GetSection("EmailProviders:SendGrid"))
+            .ValidateOnStart();
 
         services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddScoped<DemoCatalogSeeder>();
+        services.AddHttpClient<IKeycloakAdminRepository, KeycloakAdminRepository>();
         services.AddHttpClient<OpenAiLlmProviderService>();
         services.AddHttpClient<AzureOpenAiLlmProviderService>();
         services.AddHttpClient<AnthropicLlmProviderService>();
+        services.AddHttpClient<GrokLlmProviderService>();
+        services.AddHttpClient<MicrosoftGraphEmailIntegrationProvider>();
+        services.AddHttpClient<GoogleGmailEmailIntegrationProvider>();
+        services.AddHttpClient<SendGridEmailIntegrationProvider>();
 
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
@@ -47,6 +78,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITaskRepository, TaskRepository>();
         services.AddScoped<ITaskSuggestionRepository, TaskSuggestionRepository>();
         services.AddScoped<IEmailRepository, EmailRepository>();
+        services.AddScoped<IEmailIntegrationRepository, EmailIntegrationRepository>();
         services.AddScoped<ILlmAuditLogRepository, LlmAuditLogRepository>();
         services.AddScoped<IHumanApprovalRepository, HumanApprovalRepository>();
         services.AddScoped<IPdfService, QuestPdfService>();
@@ -55,10 +87,32 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ILlmProviderService, OpenAiLlmProviderService>();
         services.AddScoped<ILlmProviderService, AzureOpenAiLlmProviderService>();
         services.AddScoped<ILlmProviderService, AnthropicLlmProviderService>();
+        services.AddScoped<ILlmProviderService, GrokLlmProviderService>();
         services.AddScoped<ILlmProviderResolver, LlmProviderResolver>();
         services.AddScoped<IGenericLlmService, GenericLlmService>();
-        services.AddScoped<IEmailProviderService, LogOnlyEmailProviderService>();
+        services.AddScoped<IEmailConnectionSecretProtector, AesEmailConnectionSecretProtector>();
+        services.AddScoped<IEmailIntegrationProvider, MicrosoftGraphEmailIntegrationProvider>();
+        services.AddScoped<IEmailIntegrationProvider, GoogleGmailEmailIntegrationProvider>();
+        services.AddScoped<IEmailIntegrationProvider, MailcowEmailIntegrationProvider>();
+        services.AddScoped<IEmailIntegrationProvider, GenericImapSmtpEmailIntegrationProvider>();
+        services.AddScoped<IEmailIntegrationProvider, SmtpDirectEmailIntegrationProvider>();
+        services.AddScoped<IEmailIntegrationProvider, SendGridEmailIntegrationProvider>();
+        services.AddScoped<IEmailIntegrationProviderResolver, EmailIntegrationProviderResolver>();
+        services.AddScoped<IEmailProviderService, ConnectedEmailProviderService>();
+        services.AddHostedService<EmailIntegrationSyncWorker>();
 
         return services;
+    }
+
+    private static bool IsValidBase64Key(string value)
+    {
+        try
+        {
+            return Convert.FromBase64String(value).Length == 32;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

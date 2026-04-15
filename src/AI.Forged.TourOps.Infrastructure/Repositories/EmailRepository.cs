@@ -31,6 +31,9 @@ public class EmailRepository(AppDbContext dbContext) : IEmailRepository
     public async Task<EmailThread?> GetThreadByIdAsync(Guid threadId, CancellationToken cancellationToken = default) =>
         await BuildThreadQuery().FirstOrDefaultAsync(x => x.Id == threadId, cancellationToken);
 
+    public async Task<EmailThread?> GetThreadByExternalThreadIdAsync(string externalThreadId, CancellationToken cancellationToken = default) =>
+        await BuildThreadQuery().FirstOrDefaultAsync(x => x.ExternalThreadId == externalThreadId, cancellationToken);
+
     public async Task<IReadOnlyList<EmailThread>> GetThreadsAsync(Guid? bookingId = null, CancellationToken cancellationToken = default)
     {
         var query = BuildThreadQuery();

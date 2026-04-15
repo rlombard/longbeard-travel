@@ -3,7 +3,7 @@ import { getAccessToken } from '../auth/keycloak';
 import { appEnv } from '../config/env';
 
 export const apiClient = axios.create({
-  baseURL: appEnv.apiBaseUrl
+  baseURL: appEnv.bffBaseUrl
 });
 
 apiClient.interceptors.request.use((config) => {

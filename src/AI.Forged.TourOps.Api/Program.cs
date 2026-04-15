@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 var keycloakSection = builder.Configuration.GetSection("Keycloak");
@@ -54,8 +55,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 return string.Equals(azp, keycloakAudience, StringComparison.OrdinalIgnoreCase);
             };
         }
+
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                if (context.Principal?.Identity is ClaimsIdentity identity)
+                {
+                    KeycloakRoleClaimEnricher.Enrich(identity);
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("admin"));
+});
 
 builder.Services
     .AddApplication()
@@ -78,6 +95,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();
 
 await ApplyMigrationsWithRetryAsync(app);
+await SeedDemoCatalogIfEnabledAsync(app);
 
 await app.RunAsync();
 
@@ -111,4 +129,16 @@ static async Task ApplyMigrationsWithRetryAsync(WebApplication app)
     using var finalScope = app.Services.CreateScope();
     var finalDbContext = finalScope.ServiceProvider.GetRequiredService<AppDbContext>();
     await finalDbContext.Database.MigrateAsync();
+}
+
+static async Task SeedDemoCatalogIfEnabledAsync(WebApplication app)
+{
+    if (!app.Configuration.GetValue<bool>("demo"))
+    {
+        return;
+    }
+
+    using var scope = app.Services.CreateScope();
+    var seeder = scope.ServiceProvider.GetRequiredService<DemoCatalogSeeder>();
+    await seeder.SeedAsync();
 }

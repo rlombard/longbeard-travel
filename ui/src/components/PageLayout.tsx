@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import { isAdminUser } from '../auth/keycloak';
 
-const nav = [
+const baseNav = [
   { to: '/suppliers', label: 'Suppliers' },
   { to: '/products', label: 'Products' },
   { to: '/itineraries', label: 'Itineraries' },
@@ -15,6 +16,7 @@ const nav = [
 
 export const PageLayout = () => {
   const location = useLocation();
+  const nav = isAdminUser() ? [...baseNav, { to: '/admin/users', label: 'Users' }] : baseNav;
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.18),_transparent_32%),linear-gradient(180deg,_#fffaf2_0%,_#f8fafc_45%,_#eef2ff_100%)]">

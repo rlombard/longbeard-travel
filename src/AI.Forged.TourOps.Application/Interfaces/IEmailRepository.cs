@@ -8,6 +8,7 @@ public interface IEmailRepository
     Task<EmailMessage> AddMessageAsync(EmailMessage message, CancellationToken cancellationToken = default);
     Task<EmailDraft> AddDraftAsync(EmailDraft draft, CancellationToken cancellationToken = default);
     Task<EmailThread?> GetThreadByIdAsync(Guid threadId, CancellationToken cancellationToken = default);
+    Task<EmailThread?> GetThreadByExternalThreadIdAsync(string externalThreadId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<EmailThread>> GetThreadsAsync(Guid? bookingId = null, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<EmailThread>> GetThreadsByBookingAsync(Guid bookingId, CancellationToken cancellationToken = default);
     Task<EmailMessage?> GetMessageByIdAsync(Guid messageId, CancellationToken cancellationToken = default);

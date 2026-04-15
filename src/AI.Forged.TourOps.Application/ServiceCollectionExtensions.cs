@@ -16,6 +16,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.AddScoped<IAdminUserService, AdminUserService>();
         services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IProductService, ProductService>();
@@ -31,6 +32,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IItineraryAiService, ItineraryAiService>();
         services.AddScoped<IBookingTaskSuggestionService, BookingTaskSuggestionService>();
         services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IEmailIntegrationService, EmailIntegrationService>();
         services.AddScoped<IEmailAiService, EmailAiService>();
         services.AddScoped<IEmailAnalysisService>(provider => provider.GetRequiredService<IEmailAiService>() as IEmailAnalysisService
             ?? throw new InvalidOperationException("Email AI service registration is invalid."));

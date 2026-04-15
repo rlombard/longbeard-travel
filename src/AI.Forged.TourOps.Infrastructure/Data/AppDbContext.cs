@@ -38,6 +38,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<EmailThread> EmailThreads => Set<EmailThread>();
     public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
     public DbSet<EmailDraft> EmailDrafts => Set<EmailDraft>();
+    public DbSet<EmailProviderConnection> EmailProviderConnections => Set<EmailProviderConnection>();
+    public DbSet<EmailProviderMessageLink> EmailProviderMessageLinks => Set<EmailProviderMessageLink>();
     public DbSet<LlmAuditLog> LlmAuditLogs => Set<LlmAuditLog>();
     public DbSet<HumanApprovalRequest> HumanApprovalRequests => Set<HumanApprovalRequest>();
 
@@ -54,6 +56,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.HasPostgresEnum<EmailDraftStatus>();
         modelBuilder.HasPostgresEnum<EmailDraftGeneratedBy>();
         modelBuilder.HasPostgresEnum<EmailClassificationType>();
+        modelBuilder.HasPostgresEnum<EmailIntegrationProviderType>();
+        modelBuilder.HasPostgresEnum<EmailIntegrationAuthMethod>();
+        modelBuilder.HasPostgresEnum<EmailIntegrationStatus>();
         modelBuilder.HasPostgresEnum<HumanApprovalStatus>();
         modelBuilder.HasPostgresEnum<ItineraryDraftStatus>();
         modelBuilder.HasPostgresEnum<InvoiceStatus>();
@@ -717,6 +722,59 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithMany(x => x.Drafts)
                 .HasForeignKey(x => x.EmailThreadId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<EmailProviderConnection>(entity =>
+        {
+            entity.ToTable("EmailProviderConnections");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.OwnerUserId).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.ConnectionName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ProviderType).HasConversion<string>().HasMaxLength(64).IsRequired();
+            entity.Property(x => x.AuthMethod).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.MailboxAddress).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(256);
+            entity.Property(x => x.ExternalAccountId).HasMaxLength(256);
+            entity.Property(x => x.ConnectionSettingsJson).HasMaxLength(16000);
+            entity.Property(x => x.EncryptedCredentialsJson).HasMaxLength(16000);
+            entity.Property(x => x.OAuthState).HasMaxLength(256);
+            entity.Property(x => x.OAuthReturnUrl).HasMaxLength(2000);
+            entity.Property(x => x.SyncCursorJson).HasMaxLength(16000);
+            entity.Property(x => x.LastError).HasMaxLength(4000);
+            entity.Property(x => x.WebhookSubscriptionId).HasMaxLength(256);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasIndex(x => x.OwnerUserId);
+            entity.HasIndex(x => new { x.OwnerUserId, x.IsDefaultConnection });
+            entity.HasIndex(x => new { x.OwnerUserId, x.MailboxAddress });
+            entity.HasIndex(x => new { x.Status, x.NextSyncAt });
+            entity.HasIndex(x => x.OAuthState);
+        });
+
+        modelBuilder.Entity<EmailProviderMessageLink>(entity =>
+        {
+            entity.ToTable("EmailProviderMessageLinks");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ProviderMessageId).HasMaxLength(512).IsRequired();
+            entity.Property(x => x.ProviderThreadId).HasMaxLength(512);
+            entity.Property(x => x.FolderName).HasMaxLength(256);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasIndex(x => new { x.EmailProviderConnectionId, x.ProviderMessageId }).IsUnique();
+            entity.HasIndex(x => new { x.EmailProviderConnectionId, x.ProviderThreadId });
+            entity.HasOne(x => x.EmailProviderConnection)
+                .WithMany(x => x.MessageLinks)
+                .HasForeignKey(x => x.EmailProviderConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EmailThread)
+                .WithMany()
+                .HasForeignKey(x => x.EmailThreadId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EmailMessage)
+                .WithMany()
+                .HasForeignKey(x => x.EmailMessageId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<LlmAuditLog>(entity =>

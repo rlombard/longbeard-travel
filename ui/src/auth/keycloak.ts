@@ -9,8 +9,30 @@ export const keycloak = new Keycloak({
 
 let accessToken: string | null = null;
 
+type ParsedToken = {
+  sub?: string;
+  realm_access?: {
+    roles?: string[];
+  };
+  resource_access?: Record<string, { roles?: string[] }>;
+};
+
 export const getAccessToken = () => accessToken;
 export const getCurrentUserId = () => keycloak.tokenParsed?.sub ?? null;
+export const getRealmRoles = () => ((keycloak.tokenParsed as ParsedToken | undefined)?.realm_access?.roles ?? []).filter(Boolean);
+export const getClientRoles = (clientId?: string) => {
+  const resourceAccess = (keycloak.tokenParsed as ParsedToken | undefined)?.resource_access ?? {};
+
+  if (clientId) {
+    return (resourceAccess[clientId]?.roles ?? []).filter(Boolean);
+  }
+
+  return Object.values(resourceAccess).flatMap((entry) => (entry.roles ?? []).filter(Boolean));
+};
+export const hasRole = (roleName: string) =>
+  getRealmRoles().some((role) => role.toLowerCase() === roleName.toLowerCase())
+  || getClientRoles().some((role) => role.toLowerCase() === roleName.toLowerCase());
+export const isAdminUser = () => hasRole('admin');
 
 export const setAccessToken = (token: string | null) => {
   accessToken = token;

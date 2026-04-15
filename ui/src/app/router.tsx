@@ -1,6 +1,8 @@
+import { AdminGuard } from '../auth/AdminGuard';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { AuthGuard } from '../auth/AuthGuard';
 import { PageLayout } from '../components/PageLayout';
+import { AdminUsersPage } from '../features/adminUsers/AdminUsersPage';
 import { BookingDetailPage } from '../features/bookings/BookingDetailPage';
 import { CustomerDetailPage } from '../features/customers/CustomerDetailPage';
 import { CustomersPage } from '../features/customers/CustomersPage';
@@ -36,6 +38,14 @@ const router = createBrowserRouter([
       { path: '/invoices/:invoiceId', element: <InvoiceDetailPage /> },
       { path: '/customers', element: <CustomersPage /> },
       { path: '/customers/:customerId', element: <CustomerDetailPage /> },
+      {
+        path: '/admin/users',
+        element: (
+          <AdminGuard>
+            <AdminUsersPage />
+          </AdminGuard>
+        )
+      },
       { path: '/emails', element: <EmailsPage /> },
       { path: '/operations', element: <OperationsPage /> }
     ]

@@ -19,6 +19,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/AI.Forged.TourOps.Application/AI.Forged.TourOps.Application.csproj" />
+    <ProjectReference Include="../../src/AI.Forged.TourOps.Api/AI.Forged.TourOps.Api.csproj" />
     <ProjectReference Include="../../src/AI.Forged.TourOps.Domain/AI.Forged.TourOps.Domain.csproj" />
+    <ProjectReference Include="../../src/AI.Forged.TourOps.Infrastructure/AI.Forged.TourOps.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

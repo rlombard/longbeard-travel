@@ -38,13 +38,51 @@ services:
       - postgres
       - keycloak
     environment:
+      DEBUG: "true"
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       KEYCLOAK__AUTHORITY: http://keycloak:8080/realms/${KEYCLOAK_REALM}
       KEYCLOAK__PUBLICAUTHORITY: http://localhost:8080/realms/${KEYCLOAK_REALM}
       KEYCLOAK__AUDIENCE: ${KEYCLOAK_CLIENT_ID}
+      KeycloakAdmin__BaseUrl: http://keycloak:8080
+      KeycloakAdmin__Realm: ${KEYCLOAK_REALM}
+      KeycloakAdmin__ClientId: ${KEYCLOAK_ADMIN_CLIENT_ID:-tourops-admin-api}
+      KeycloakAdmin__ClientSecret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:-tourops-admin-secret}
+      EmailIntegration__Enabled: ${EMAIL_INTEGRATION_ENABLED:-true}
+      EmailIntegration__EncryptionKey: ${EMAIL_INTEGRATION_ENCRYPTION_KEY:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
+      EmailIntegration__SyncWorkerIntervalSeconds: ${EMAIL_INTEGRATION_SYNC_WORKER_INTERVAL_SECONDS:-60}
+      EmailProviders__Microsoft365__Enabled: ${EMAIL_PROVIDER_MICROSOFT365_ENABLED:-false}
+      EmailProviders__Microsoft365__ClientId: ${EMAIL_PROVIDER_MICROSOFT365_CLIENT_ID:-}
+      EmailProviders__Microsoft365__ClientSecret: ${EMAIL_PROVIDER_MICROSOFT365_CLIENT_SECRET:-}
+      EmailProviders__Microsoft365__RedirectUri: ${EMAIL_PROVIDER_MICROSOFT365_REDIRECT_URI:-http://localhost:5001/api/email-integrations/oauth/callback/microsoft365}
+      EmailProviders__Microsoft365__DefaultTenantId: ${EMAIL_PROVIDER_MICROSOFT365_DEFAULT_TENANT_ID:-common}
+      EmailProviders__Gmail__Enabled: ${EMAIL_PROVIDER_GMAIL_ENABLED:-false}
+      EmailProviders__Gmail__ClientId: ${EMAIL_PROVIDER_GMAIL_CLIENT_ID:-}
+      EmailProviders__Gmail__ClientSecret: ${EMAIL_PROVIDER_GMAIL_CLIENT_SECRET:-}
+      EmailProviders__Gmail__RedirectUri: ${EMAIL_PROVIDER_GMAIL_REDIRECT_URI:-http://localhost:5001/api/email-integrations/oauth/callback/gmail}
+      EmailProviders__SendGrid__Enabled: ${EMAIL_PROVIDER_SENDGRID_ENABLED:-false}
+      EmailProviders__SendGrid__InboundWebhookSigningSecret: ${EMAIL_PROVIDER_SENDGRID_WEBHOOK_SECRET:-}
+      GrokSettings__ApiKey: ${GROK_API_KEY:-}
+      GrokSettings__BaseUrl: ${GROK_BASE_URL:-https://api.x.ai/v1}
+      GrokSettings__Model: ${GROK_MODEL:-grok-3-mini}
     ports:
       - "${API_HOST_PORT:-5001}:5000"
+    networks:
+      - tourops-net
+
+  bff:
+    build:
+      context: .
+      dockerfile: src/Bff/Dockerfile
+    container_name: tourops-bff
+    depends_on:
+      - api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Bff__ApiBaseUrl: ${BFF_API_BASE_URL:-http://api:5000/api}
+      Bff__UpstreamTimeoutSeconds: ${BFF_UPSTREAM_TIMEOUT_SECONDS:-30}
+    ports:
+      - "${BFF_HOST_PORT:-5002}:5000"
     networks:
       - tourops-net
 
@@ -54,9 +92,10 @@ services:
       dockerfile: frontend/Dockerfile
     container_name: tourops-frontend
     depends_on:
-      - api
+      - bff
     environment:
-      API_BASE_URL: /api
+      DEBUG: "true"
+      BFF_BASE_URL: ${UI_BFF_BASE_URL:-/bff/api}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}

@@ -28,6 +28,9 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "email_direction", new[] { "inbound", "outbound" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "email_draft_generated_by", new[] { "human", "ai" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "email_draft_status", new[] { "draft", "approved", "sent", "rejected" });
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "email_integration_auth_method", new[] { "o_auth2", "api_key", "password" });
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "email_integration_provider_type", new[] { "microsoft365", "gmail", "mailcow", "send_grid", "smtp_direct", "generic_imap_smtp" });
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "email_integration_status", new[] { "draft", "pending_authorization", "active", "needs_reconnect", "error", "disabled", "revoked" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "human_approval_status", new[] { "pending", "approved", "rejected" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "invoice_status", new[] { "draft", "received", "matched", "unmatched", "pending_review", "approved", "rejected", "unpaid", "partially_paid", "paid", "overdue", "rebate_pending", "rebate_applied", "cancelled" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "itinerary_draft_status", new[] { "draft", "approved", "rejected" });
@@ -527,6 +530,181 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                     b.HasIndex("SentAt");
 
                     b.ToTable("EmailMessages", (string)null);
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.EmailProviderConnection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AccessTokenExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("AllowSend")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AllowSync")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("AuthMethod")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("ConnectionName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ConnectionSettingsJson")
+                        .HasMaxLength(16000)
+                        .HasColumnType("character varying(16000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("EncryptedCredentialsJson")
+                        .HasMaxLength(16000)
+                        .HasColumnType("character varying(16000)");
+
+                    b.Property<string>("ExternalAccountId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("IsDefaultConnection")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTime?>("LastSuccessfulSendAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastTestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MailboxAddress")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("NextSyncAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OAuthReturnUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("OAuthState")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("OAuthStateExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OwnerUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ProviderType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("SyncCursorJson")
+                        .HasMaxLength(16000)
+                        .HasColumnType("character varying(16000)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("WebhookSubscriptionExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("WebhookSubscriptionId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OAuthState");
+
+                    b.HasIndex("OwnerUserId");
+
+                    b.HasIndex("OwnerUserId", "IsDefaultConnection");
+
+                    b.HasIndex("OwnerUserId", "MailboxAddress");
+
+                    b.HasIndex("Status", "NextSyncAt");
+
+                    b.ToTable("EmailProviderConnections", (string)null);
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.EmailProviderMessageLink", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EmailMessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmailProviderConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmailThreadId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FolderName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ProviderMessageId")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("ProviderThreadId")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTime?>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmailMessageId");
+
+                    b.HasIndex("EmailThreadId");
+
+                    b.HasIndex("EmailProviderConnectionId", "ProviderMessageId")
+                        .IsUnique();
+
+                    b.HasIndex("EmailProviderConnectionId", "ProviderThreadId")
+                        .HasDatabaseName("IX_EmailProviderMessageLinks_EmailProviderConnectionId_Provid~1");
+
+                    b.ToTable("EmailProviderMessageLinks", (string)null);
                 });
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.EmailThread", b =>
@@ -2017,6 +2195,33 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                     b.Navigation("Thread");
                 });
 
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.EmailProviderMessageLink", b =>
+                {
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.EmailMessage", "EmailMessage")
+                        .WithMany()
+                        .HasForeignKey("EmailMessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.EmailProviderConnection", "EmailProviderConnection")
+                        .WithMany("MessageLinks")
+                        .HasForeignKey("EmailProviderConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AI.Forged.TourOps.Domain.Entities.EmailThread", "EmailThread")
+                        .WithMany()
+                        .HasForeignKey("EmailThreadId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("EmailMessage");
+
+                    b.Navigation("EmailProviderConnection");
+
+                    b.Navigation("EmailThread");
+                });
+
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.EmailThread", b =>
                 {
                     b.HasOne("AI.Forged.TourOps.Domain.Entities.Booking", "Booking")
@@ -2408,6 +2613,11 @@ namespace AI.Forged.TourOps.Infrastructure.Migrations
                     b.Navigation("LeadQuotes");
 
                     b.Navigation("PreferenceProfile");
+                });
+
+            modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.EmailProviderConnection", b =>
+                {
+                    b.Navigation("MessageLinks");
                 });
 
             modelBuilder.Entity("AI.Forged.TourOps.Domain.Entities.EmailThread", b =>

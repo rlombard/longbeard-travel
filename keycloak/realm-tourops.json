@@ -19,6 +19,18 @@
       "standardFlowEnabled": true,
       "redirectUris": ["http://localhost:3000/*"],
       "webOrigins": ["http://localhost:3000"]
+    },
+    {
+      "clientId": "tourops-admin-api",
+      "name": "TourOps Admin API",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "tourops-admin-secret",
+      "protocol": "openid-connect",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "clientAuthenticatorType": "client-secret"
     }
   ],
   "users": [
@@ -37,6 +49,20 @@
         }
       ],
       "realmRoles": ["admin"]
+    },
+    {
+      "username": "service-account-tourops-admin-api",
+      "enabled": true,
+      "serviceAccountClientId": "tourops-admin-api",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "query-users",
+          "view-users",
+          "query-clients",
+          "view-clients"
+        ]
+      }
     }
   ]
 }
