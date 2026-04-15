@@ -3,11 +3,16 @@ services:
     image: postgres:16
     container_name: tourops-postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-ai_forged_tour_ops}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ai_forged_tour_ops}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -20,10 +25,15 @@ services:
       - start-dev
       - --import-realm
     environment:
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
     volumes:
       - ./keycloak/realm-tourops.json:/opt/keycloak/data/import/realm-tourops.json:ro
     networks:
@@ -35,22 +45,75 @@ services:
       dockerfile: src/Api/Dockerfile
     container_name: tourops-api
     depends_on:
-      - postgres
-      - keycloak
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
     environment:
       DEBUG: "true"
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
-      KEYCLOAK__AUTHORITY: http://keycloak:8080/realms/${KEYCLOAK_REALM}
-      KEYCLOAK__PUBLICAUTHORITY: http://localhost:8080/realms/${KEYCLOAK_REALM}
-      KEYCLOAK__AUDIENCE: ${KEYCLOAK_CLIENT_ID}
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ai_forged_tour_ops};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      Deployment__Mode: ${DEPLOYMENT_MODE:-SaaS}
+      Tenancy__StandaloneTenantId: ${TENANCY_STANDALONE_TENANT_ID:-11111111-1111-1111-1111-111111111111}
+      Tenancy__StandaloneTenantSlug: ${TENANCY_STANDALONE_TENANT_SLUG:-standalone}
+      Tenancy__StandaloneTenantName: ${TENANCY_STANDALONE_TENANT_NAME:-Standalone Tenant}
+      Tenancy__SeedDemoTenantInSaas: ${TENANCY_SEED_DEMO_TENANT_IN_SAAS:-true}
+      Tenancy__SeedDemoCatalogInSaas: ${TENANCY_SEED_DEMO_CATALOG_IN_SAAS:-true}
+      Tenancy__DemoTenantId: ${TENANCY_DEMO_TENANT_ID:-22222222-2222-2222-2222-222222222222}
+      Tenancy__DemoTenantSlug: ${TENANCY_DEMO_TENANT_SLUG:-demo-agency}
+      Tenancy__DemoTenantName: ${TENANCY_DEMO_TENANT_NAME:-Demo Agency}
+      Keycloak__BaseUrl: http://keycloak:8080
+      Keycloak__PublicBaseUrl: http://localhost:8080
+      KEYCLOAK__AUTHORITY: http://keycloak:8080/realms/${KEYCLOAK_REALM:-tourops}
+      KEYCLOAK__PUBLICAUTHORITY: http://localhost:8080/realms/${KEYCLOAK_REALM:-tourops}
+      KEYCLOAK__AUDIENCE: ${KEYCLOAK_CLIENT_ID:-frontend}
+      Keycloak__ManagementRealm: ${KEYCLOAK_REALM:-tourops}
+      Keycloak__ManagementClientId: ${KEYCLOAK_CLIENT_ID:-frontend}
+      Keycloak__TenantClientId: ${KEYCLOAK_TENANT_CLIENT_ID:-frontend}
+      Keycloak__TenantRealmPrefix: ${KEYCLOAK_TENANT_REALM_PREFIX:-tenant-}
+      KeycloakProvisioning__IsolationMode: ${KEYCLOAK_TENANT_ISOLATION_MODE:-RealmPerTenant}
+      KeycloakProvisioning__PublicBaseUrl: http://localhost:8080
+      KeycloakProvisioning__ManagementRealm: ${KEYCLOAK_REALM:-tourops}
+      KeycloakProvisioning__ManagementClientId: ${KEYCLOAK_CLIENT_ID:-frontend}
+      KeycloakProvisioning__ManagementIssuerUrl: http://localhost:8080/realms/${KEYCLOAK_REALM:-tourops}
+      KeycloakProvisioning__TenantClientId: ${KEYCLOAK_TENANT_CLIENT_ID:-frontend}
+      KeycloakProvisioning__TenantRealmPrefix: ${KEYCLOAK_TENANT_REALM_PREFIX:-tenant-}
+      KeycloakProvisioning__FrontendRootUrl: ${FRONTEND_ROOT_URL:-http://localhost:3000}
+      KeycloakProvisioning__RedirectUris__0: ${KEYCLOAK_FRONTEND_REDIRECT_URI_0:-http://localhost:3000/*}
+      KeycloakProvisioning__WebOrigins__0: ${KEYCLOAK_FRONTEND_WEB_ORIGIN_0:-http://localhost:3000}
       KeycloakAdmin__BaseUrl: http://keycloak:8080
-      KeycloakAdmin__Realm: ${KEYCLOAK_REALM}
+      KeycloakAdmin__Realm: ${KEYCLOAK_REALM:-tourops}
       KeycloakAdmin__ClientId: ${KEYCLOAK_ADMIN_CLIENT_ID:-tourops-admin-api}
       KeycloakAdmin__ClientSecret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:-tourops-admin-secret}
+      KeycloakRealmProvisioningAdmin__BaseUrl: http://keycloak:8080
+      KeycloakRealmProvisioningAdmin__AdminRealm: ${KEYCLOAK_REALM_PROVISIONING_ADMIN_REALM:-master}
+      KeycloakRealmProvisioningAdmin__ClientId: ${KEYCLOAK_REALM_PROVISIONING_ADMIN_CLIENT_ID:-admin-cli}
+      KeycloakRealmProvisioningAdmin__Username: ${KEYCLOAK_ADMIN:-admin}
+      KeycloakRealmProvisioningAdmin__Password: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      Signup__Enabled: ${SIGNUP_ENABLED:-true}
+      Signup__AllowInStandalone: ${SIGNUP_ALLOW_IN_STANDALONE:-false}
+      Signup__SessionExpirationHours: ${SIGNUP_SESSION_EXPIRATION_HOURS:-48}
+      Signup__VerificationTokenMinutes: ${SIGNUP_VERIFICATION_TOKEN_MINUTES:-30}
+      Signup__VerificationResendSeconds: ${SIGNUP_VERIFICATION_RESEND_SECONDS:-60}
+      Signup__ExposeDebugTokens: ${SIGNUP_EXPOSE_DEBUG_TOKENS:-true}
+      Signup__PublicSignupUrl: ${SIGNUP_PUBLIC_URL:-http://localhost:3000/signup}
+      SignupBilling__Provider: ${SIGNUP_BILLING_PROVIDER:-Manual}
+      SignupBilling__SupportEmail: ${SIGNUP_BILLING_SUPPORT_EMAIL:-sales@tourops.local}
+      SignupBilling__AllowTestPaymentConfirmation: ${SIGNUP_ALLOW_TEST_PAYMENT_CONFIRMATION:-true}
+      SignupEmail__Provider: ${SIGNUP_EMAIL_PROVIDER:-LogOnly}
+      SignupEmail__FromAddress: ${SIGNUP_EMAIL_FROM_ADDRESS:-noreply@tourops.local}
+      SignupEmail__FromDisplayName: ${SIGNUP_EMAIL_FROM_NAME:-AI Forged TourOps}
+      SignupEmail__SmtpHost: ${SIGNUP_EMAIL_SMTP_HOST:-}
+      SignupEmail__SmtpPort: ${SIGNUP_EMAIL_SMTP_PORT:-587}
+      SignupEmail__UseSsl: ${SIGNUP_EMAIL_USE_SSL:-true}
+      SignupEmail__Username: ${SIGNUP_EMAIL_USERNAME:-}
+      SignupEmail__Password: ${SIGNUP_EMAIL_PASSWORD:-}
       EmailIntegration__Enabled: ${EMAIL_INTEGRATION_ENABLED:-true}
       EmailIntegration__EncryptionKey: ${EMAIL_INTEGRATION_ENCRYPTION_KEY:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
       EmailIntegration__SyncWorkerIntervalSeconds: ${EMAIL_INTEGRATION_SYNC_WORKER_INTERVAL_SECONDS:-60}
+      EmailIntegration__AutomationEnabled: ${EMAIL_INTEGRATION_AUTOMATION_ENABLED:-true}
+      EmailIntegration__AutomationWorkerIntervalSeconds: ${EMAIL_INTEGRATION_AUTOMATION_WORKER_INTERVAL_SECONDS:-15}
+      EmailIntegration__AutomationBatchSize: ${EMAIL_INTEGRATION_AUTOMATION_BATCH_SIZE:-25}
       EmailProviders__Microsoft365__Enabled: ${EMAIL_PROVIDER_MICROSOFT365_ENABLED:-false}
       EmailProviders__Microsoft365__ClientId: ${EMAIL_PROVIDER_MICROSOFT365_CLIENT_ID:-}
       EmailProviders__Microsoft365__ClientSecret: ${EMAIL_PROVIDER_MICROSOFT365_CLIENT_SECRET:-}
@@ -76,7 +139,8 @@ services:
       dockerfile: src/Bff/Dockerfile
     container_name: tourops-bff
     depends_on:
-      - api
+      api:
+        condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       Bff__ApiBaseUrl: ${BFF_API_BASE_URL:-http://api:5000/api}
@@ -92,13 +156,14 @@ services:
       dockerfile: frontend/Dockerfile
     container_name: tourops-frontend
     depends_on:
-      - bff
+      bff:
+        condition: service_started
     environment:
       DEBUG: "true"
       BFF_BASE_URL: ${UI_BFF_BASE_URL:-/bff/api}
-      KEYCLOAK_URL: ${KEYCLOAK_URL}
-      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
-      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://localhost:8080}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-tourops}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-frontend}
     ports:
       - "3000:3000"
     networks:

@@ -320,6 +320,7 @@ public class InvoiceServiceTests
         public Task<EmailThread?> GetThreadByExternalThreadIdAsync(string externalThreadId, CancellationToken cancellationToken = default) => Task.FromResult<EmailThread?>(null);
         public Task<IReadOnlyList<EmailThread>> GetThreadsAsync(Guid? bookingId = null, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<EmailThread>>([]);
         public Task<IReadOnlyList<EmailThread>> GetThreadsByBookingAsync(Guid bookingId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<EmailThread>>([]);
+        public Task<IReadOnlyList<EmailThread>> GetThreadsPendingAutomationAsync(int take, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<EmailThread>>([]);
         public Task<EmailMessage?> GetMessageByIdAsync(Guid messageId, CancellationToken cancellationToken = default) => Task.FromResult<EmailMessage?>(null);
         public Task<EmailDraft?> GetDraftByIdAsync(Guid draftId, CancellationToken cancellationToken = default) => Task.FromResult<EmailDraft?>(null);
         public Task UpdateThreadAsync(EmailThread thread, CancellationToken cancellationToken = default) => Task.CompletedTask;

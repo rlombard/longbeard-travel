@@ -40,9 +40,9 @@ interface MessageComposerState {
 }
 
 export const EmailsPage = () => {
-  const { data: threads = [], isLoading, isError, error } = useEmailThreads();
+  const { data: threads = [], isLoading, isError, error } = useEmailThreads(undefined, { refetchIntervalMs: 15000 });
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
-  const { data: selectedThread } = useEmailThread(selectedThreadId ?? undefined);
+  const { data: selectedThread } = useEmailThread(selectedThreadId ?? undefined, { refetchIntervalMs: 8000 });
 
   const analyzeMutation = useAnalyzeEmailThread();
   const generateTasksMutation = useGenerateTasksFromEmailThread();
@@ -90,6 +90,11 @@ export const EmailsPage = () => {
 
   const latestInbound = useMemo(
     () => selectedThread?.messages.find((message) => message.direction === 'Inbound' && message.aiClassification) ?? selectedThread?.messages.find((message) => message.aiClassification),
+    [selectedThread]
+  );
+
+  const pendingInboundCount = useMemo(
+    () => selectedThread?.messages.filter((message) => message.direction === 'Inbound' && (!message.aiSummary || !message.aiClassification)).length ?? 0,
     [selectedThread]
   );
 
@@ -147,6 +152,11 @@ export const EmailsPage = () => {
                   </Button>
                 </div>
               </div>
+              {pendingInboundCount > 0 ? (
+                <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
+                  Background AI processing is catching up on {pendingInboundCount} inbound email{pendingInboundCount === 1 ? '' : 's'}.
+                </div>
+              ) : null}
               {latestInbound ? (
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex flex-wrap items-center gap-2">
@@ -171,6 +181,7 @@ export const EmailsPage = () => {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`rounded-full px-2 py-1 text-xs font-medium ${message.direction === 'Inbound' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'}`}>{message.direction}</span>
                         {message.aiClassification ? <span className={`rounded-full px-2 py-1 text-xs font-medium ${classificationColors[message.aiClassification]}`}>{message.aiClassification}</span> : null}
+                        {!message.aiClassification && message.direction === 'Inbound' ? <span className="rounded-full bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700">AI processing</span> : null}
                         <span className="text-xs text-slate-500">{formatDate(message.sentAt)}</span>
                       </div>
                       <p className="mt-2 text-sm font-semibold text-slate-900">{message.subject}</p>

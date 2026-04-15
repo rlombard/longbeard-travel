@@ -161,7 +161,7 @@ export const BookingDetailPage = () => {
       <Card title="Booking Detail">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
-            <Link className="text-sm text-slate-500 underline decoration-amber-300 underline-offset-4" to="/bookings">
+            <Link className="text-sm text-slate-500 underline decoration-amber-300 underline-offset-4" to="/app/bookings">
               Back to bookings
             </Link>
             <div>

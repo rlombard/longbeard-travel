@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using AI.Forged.TourOps.Application.Interfaces;
 using AI.Forged.TourOps.Application.Models.AdminUsers;
 using AI.Forged.TourOps.Infrastructure.Configuration;
@@ -64,13 +65,13 @@ public class KeycloakAdminRepository(HttpClient httpClient, IOptions<KeycloakAdm
             LastName = input.LastName,
             Enabled = input.Enabled,
             EmailVerified = input.EmailVerified,
-            RequiredActions = ["UPDATE_PASSWORD"],
+            RequiredActions = input.RequirePasswordChange ? ["UPDATE_PASSWORD"] : [],
             Credentials =
             [
                 new KeycloakPasswordCredential
                 {
                     Type = "password",
-                    Temporary = true,
+                    Temporary = input.RequirePasswordChange,
                     Value = input.TemporaryPassword
                 }
             ]
@@ -96,7 +97,8 @@ public class KeycloakAdminRepository(HttpClient httpClient, IOptions<KeycloakAdm
             FirstName = input.FirstName,
             LastName = input.LastName,
             Enabled = input.Enabled,
-            EmailVerified = input.EmailVerified
+            EmailVerified = input.EmailVerified,
+            RequiredActions = input.RequiredActions?.ToList()
         }, cancellationToken);
 
     public async Task ResetTemporaryPasswordAsync(string userId, string temporaryPassword, CancellationToken cancellationToken = default)
@@ -442,7 +444,10 @@ public class KeycloakAdminRepository(HttpClient httpClient, IOptions<KeycloakAdm
 
     private sealed class KeycloakTokenResponse
     {
+        [JsonPropertyName("access_token")]
         public string AccessToken { get; set; } = string.Empty;
+
+        [JsonPropertyName("expires_in")]
         public int ExpiresIn { get; set; }
     }
 

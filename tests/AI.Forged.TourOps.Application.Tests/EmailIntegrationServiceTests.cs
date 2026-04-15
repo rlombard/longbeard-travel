@@ -275,6 +275,9 @@ public class EmailIntegrationServiceTests
         public Task<IReadOnlyList<EmailThread>> GetThreadsByBookingAsync(Guid bookingId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<EmailThread>>(Threads.Where(x => x.BookingId == bookingId).ToList());
 
+        public Task<IReadOnlyList<EmailThread>> GetThreadsPendingAutomationAsync(int take, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<EmailThread>>([]);
+
         public Task UpdateDraftAsync(EmailDraft draft, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task UpdateMessageAsync(EmailMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
 

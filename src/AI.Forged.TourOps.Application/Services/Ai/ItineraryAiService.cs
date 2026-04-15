@@ -3,6 +3,7 @@ using AI.Forged.TourOps.Application.Interfaces;
 using AI.Forged.TourOps.Application.Interfaces.Ai;
 using AI.Forged.TourOps.Application.Interfaces.Llm;
 using AI.Forged.TourOps.Application.Interfaces.Operations;
+using AI.Forged.TourOps.Application.Interfaces.Platform;
 using AI.Forged.TourOps.Application.Models.Itineraries;
 using AI.Forged.TourOps.Application.Models.Llm;
 using AI.Forged.TourOps.Domain.Entities;
@@ -16,7 +17,9 @@ public class ItineraryAiService(
     IItineraryService itineraryService,
     ICurrentUserContext currentUserContext,
     IHumanApprovalService humanApprovalService,
-    IGenericLlmService genericLlmService) : IItineraryAiService
+    IGenericLlmService genericLlmService,
+    ILicensePolicyService? licensePolicyService = null,
+    IUsageMeteringService? usageMeteringService = null) : IItineraryAiService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -53,6 +56,11 @@ public class ItineraryAiService(
 
     public async Task<ItineraryDraftModel> GenerateDraftAsync(GenerateItineraryDraftRequest request, CancellationToken cancellationToken = default)
     {
+        if (licensePolicyService is not null)
+        {
+            await licensePolicyService.AssertAllowedAsync("ai.itinerary", cancellationToken);
+        }
+
         var plan = BuildPlanningContext(request);
         var candidates = await LoadCandidatesAsync(plan, [], cancellationToken);
         var scored = ScoreCandidates(candidates, plan);
@@ -126,6 +134,20 @@ public class ItineraryAiService(
         }).ToList();
 
         await itineraryRepository.AddDraftAsync(draft, draftItems, cancellationToken);
+        if (usageMeteringService is not null)
+        {
+            await usageMeteringService.RecordAsync(new AI.Forged.TourOps.Application.Models.Platform.MeterUsageModel
+            {
+                Category = "AI",
+                MetricKey = "ai.jobs.monthly",
+                Quantity = 1,
+                Unit = "job",
+                Source = "ItineraryAiService",
+                ReferenceEntityType = nameof(ItineraryDraft),
+                ReferenceEntityId = draft.Id
+            }, cancellationToken);
+        }
+
         draft.Items = draftItems;
         return MapDraft(draft);
     }

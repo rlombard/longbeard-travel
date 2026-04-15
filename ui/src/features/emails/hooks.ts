@@ -2,18 +2,24 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { addEmailMessage, analyzeEmailThread, approveEmailDraft, createEmailDraft, createEmailThread, draftReply, generateTasksFromEmailThread, getBookingEmailThreads, getEmailThread, getEmailThreads, sendEmailDraft, updateEmailDraft } from '../../services/emailApi';
 import { AddEmailMessageRequest, CreateEmailDraftRequest, CreateEmailThreadRequest, UpdateEmailDraftRequest } from '../../types/email';
 
-export const useEmailThreads = (bookingId?: string) =>
+interface EmailQueryOptions {
+  refetchIntervalMs?: number;
+}
+
+export const useEmailThreads = (bookingId?: string, options?: EmailQueryOptions) =>
   useQuery({
     queryKey: ['emailThreads', bookingId],
     queryFn: () => (bookingId ? getBookingEmailThreads(bookingId) : getEmailThreads()),
-    enabled: bookingId === undefined || Boolean(bookingId)
+    enabled: bookingId === undefined || Boolean(bookingId),
+    refetchInterval: options?.refetchIntervalMs
   });
 
-export const useEmailThread = (threadId?: string) =>
+export const useEmailThread = (threadId?: string, options?: EmailQueryOptions) =>
   useQuery({
     queryKey: ['emailThread', threadId],
     queryFn: () => getEmailThread(threadId!),
-    enabled: Boolean(threadId)
+    enabled: Boolean(threadId),
+    refetchInterval: options?.refetchIntervalMs
   });
 
 const invalidateEmailQueries = (queryClient: ReturnType<typeof useQueryClient>, bookingId?: string) => {

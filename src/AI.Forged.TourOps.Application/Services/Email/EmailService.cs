@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AI.Forged.TourOps.Application.Interfaces;
+using AI.Forged.TourOps.Application.Interfaces.Ai;
 using AI.Forged.TourOps.Application.Interfaces.Email;
 using AI.Forged.TourOps.Application.Interfaces.Operations;
 using AI.Forged.TourOps.Domain.Entities;
@@ -13,7 +14,7 @@ public class EmailService(
     IBookingItemRepository bookingItemRepository,
     ICurrentUserContext currentUserContext,
     IEmailProviderService emailProviderService,
-    IEmailAnalysisService emailAnalysisService,
+    IEmailAiService emailAiService,
     IHumanApprovalService humanApprovalService) : IEmailService
 {
     public async Task<EmailThread> CreateThreadAsync(Guid bookingId, Guid? bookingItemId, string subject, string supplierEmail, string? externalThreadId, CancellationToken cancellationToken = default)
@@ -63,8 +64,7 @@ public class EmailService(
 
         if (direction == EmailDirection.Inbound)
         {
-            await emailAnalysisService.AnalyzeThreadAsync(thread.Id, cancellationToken);
-            await emailAnalysisService.SuggestTasksFromEmailAsync(thread.Id, cancellationToken);
+            await emailAiService.ProcessThreadAutomationAsync(thread.Id, cancellationToken);
         }
 
         return await emailRepository.GetMessageByIdAsync(message.Id, cancellationToken)

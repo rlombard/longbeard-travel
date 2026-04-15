@@ -1,29 +1,26 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactNode, useEffect, useMemo, useState } from 'react';
-import { initAuth } from '../auth/keycloak';
+import { ReactNode, useMemo } from 'react';
+import { AuthProvider } from '../auth/AuthContext';
 
 interface Props {
   children: ReactNode;
 }
 
 export const AppProviders = ({ children }: Props) => {
-  const [isReady, setIsReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const queryClient = useMemo(() => new QueryClient(), []);
+  const queryClient = useMemo(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 30000,
+        gcTime: 5 * 60 * 1000,
+        refetchOnWindowFocus: false,
+        retry: 1
+      }
+    }
+  }), []);
 
-  useEffect(() => {
-    initAuth()
-      .then(() => setIsReady(true))
-      .catch((err: Error) => setError(err.message));
-  }, []);
-
-  if (error) {
-    return <div className="p-8 text-red-600">Authentication error: {error}</div>;
-  }
-
-  if (!isReady) {
-    return <div className="p-8">Loading authentication...</div>;
-  }
-
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>{children}</AuthProvider>
+    </QueryClientProvider>
+  );
 };

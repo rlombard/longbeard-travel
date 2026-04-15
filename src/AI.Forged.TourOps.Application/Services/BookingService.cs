@@ -1,10 +1,14 @@
 using AI.Forged.TourOps.Application.Interfaces;
+using AI.Forged.TourOps.Application.Interfaces.Platform;
 using AI.Forged.TourOps.Domain.Entities;
 using AI.Forged.TourOps.Domain.Enums;
 
 namespace AI.Forged.TourOps.Application.Services;
 
-public class BookingService(IBookingRepository bookingRepository, IQuoteRepository quoteRepository) : IBookingService
+public class BookingService(
+    IBookingRepository bookingRepository,
+    IQuoteRepository quoteRepository,
+    IUsageMeteringService? usageMeteringService = null) : IBookingService
 {
     public Task<IReadOnlyList<Booking>> GetBookingsAsync(CancellationToken cancellationToken = default) =>
         bookingRepository.GetAllAsync(cancellationToken);
@@ -51,6 +55,20 @@ public class BookingService(IBookingRepository bookingRepository, IQuoteReposito
         }
 
         await bookingRepository.AddAsync(booking, cancellationToken);
+        if (usageMeteringService is not null)
+        {
+            await usageMeteringService.RecordAsync(new AI.Forged.TourOps.Application.Models.Platform.MeterUsageModel
+            {
+                Category = "Commercial",
+                MetricKey = "booking.workflows",
+                Quantity = 1,
+                Unit = "booking",
+                Source = "BookingService",
+                ReferenceEntityType = nameof(Booking),
+                ReferenceEntityId = booking.Id,
+                IsBillable = true
+            }, cancellationToken);
+        }
 
         return await bookingRepository.GetByIdAsync(booking.Id, cancellationToken)
             ?? throw new InvalidOperationException("Booking not found after creation.");

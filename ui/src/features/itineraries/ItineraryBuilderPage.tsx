@@ -69,7 +69,7 @@ export const ItineraryBuilderPage = () => {
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-indigo-700">AI Assist Ready</p>
             <p className="text-sm text-slate-700">Use AI product assist and draft generation, then save only after operator review.</p>
           </div>
-          <Link className="inline-flex rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500" to="/itineraries/ai">
+          <Link className="inline-flex rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500" to="/app/itineraries/ai">
             Open AI Itinerary Assist
           </Link>
         </div>

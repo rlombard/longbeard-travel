@@ -152,6 +152,7 @@ public sealed class KeycloakAdminCreateUserInput
     public bool Enabled { get; init; }
     public bool EmailVerified { get; init; }
     public string TemporaryPassword { get; init; } = string.Empty;
+    public bool RequirePasswordChange { get; init; } = true;
 }
 
 public sealed class KeycloakAdminUpdateUserInput
@@ -162,4 +163,5 @@ public sealed class KeycloakAdminUpdateUserInput
     public string LastName { get; init; } = string.Empty;
     public bool Enabled { get; init; }
     public bool EmailVerified { get; init; }
+    public IReadOnlyList<string>? RequiredActions { get; init; }
 }

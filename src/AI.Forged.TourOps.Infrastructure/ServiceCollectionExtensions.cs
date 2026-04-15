@@ -2,12 +2,14 @@ using AI.Forged.TourOps.Application.Interfaces;
 using AI.Forged.TourOps.Application.Interfaces.Ai;
 using AI.Forged.TourOps.Application.Interfaces.Email;
 using AI.Forged.TourOps.Application.Interfaces.Llm;
+using AI.Forged.TourOps.Application.Interfaces.Platform;
 using AI.Forged.TourOps.Infrastructure.AiForged;
 using AI.Forged.TourOps.Infrastructure.Configuration;
 using AI.Forged.TourOps.Infrastructure.Data;
 using AI.Forged.TourOps.Infrastructure.Email;
 using AI.Forged.TourOps.Infrastructure.Llm;
 using AI.Forged.TourOps.Infrastructure.Llm.Providers;
+using AI.Forged.TourOps.Infrastructure.Platform;
 using AI.Forged.TourOps.Infrastructure.Pdf;
 using AI.Forged.TourOps.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +29,13 @@ public static class ServiceCollectionExtensions
         services.Configure<AiForgedSettings>(configuration.GetSection("AiForgedSettings"));
         services.Configure<LlmSettings>(configuration.GetSection("LlmSettings"));
         services.Configure<KeycloakAdminSettings>(configuration.GetSection("KeycloakAdmin"));
+        services.Configure<KeycloakRealmProvisioningAdminSettings>(configuration.GetSection("KeycloakRealmProvisioningAdmin"));
+        services.Configure<DeploymentSettings>(configuration.GetSection("Deployment"));
+        services.Configure<TenantResolutionSettings>(configuration.GetSection("Tenancy"));
+        services.Configure<KeycloakTenantProvisioningSettings>(configuration.GetSection("KeycloakProvisioning"));
+        services.Configure<SignupSettings>(configuration.GetSection("Signup"));
+        services.Configure<SignupBillingSettings>(configuration.GetSection("SignupBilling"));
+        services.Configure<SignupEmailSettings>(configuration.GetSection("SignupEmail"));
         services.Configure<OpenAiSettings>(configuration.GetSection("OpenAiSettings"));
         services.Configure<AzureOpenAiSettings>(configuration.GetSection("AzureOpenAiSettings"));
         services.Configure<AnthropicSettings>(configuration.GetSection("AnthropicSettings"));
@@ -55,9 +64,13 @@ public static class ServiceCollectionExtensions
             .Bind(configuration.GetSection("EmailProviders:SendGrid"))
             .ValidateOnStart();
 
+        services.AddScoped<ITenantExecutionContextAccessor, TenantExecutionContextAccessor>();
+        services.AddSingleton<IPlatformIdentitySettingsAccessor, PlatformIdentitySettingsAccessor>();
+        services.AddSingleton<ISignupSettingsAccessor, SignupSettingsAccessor>();
         services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<DemoCatalogSeeder>();
         services.AddHttpClient<IKeycloakAdminRepository, KeycloakAdminRepository>();
+        services.AddHttpClient<IKeycloakRealmAdminRepository, KeycloakRealmAdminRepository>();
         services.AddHttpClient<OpenAiLlmProviderService>();
         services.AddHttpClient<AzureOpenAiLlmProviderService>();
         services.AddHttpClient<AnthropicLlmProviderService>();
@@ -81,6 +94,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmailIntegrationRepository, EmailIntegrationRepository>();
         services.AddScoped<ILlmAuditLogRepository, LlmAuditLogRepository>();
         services.AddScoped<IHumanApprovalRepository, HumanApprovalRepository>();
+        services.AddScoped<ITenantPlatformRepository, TenantPlatformRepository>();
+        services.AddScoped<IKeycloakProvisioningService, KeycloakProvisioningService>();
+        services.AddScoped<ISignupBillingGateway, ManualSignupBillingGateway>();
         services.AddScoped<IPdfService, QuestPdfService>();
         services.AddScoped<IAiForgedService, AiForgedStubService>();
         services.AddScoped<ILlmProviderService, DeterministicLlmProviderService>();
@@ -99,7 +115,17 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmailIntegrationProvider, SendGridEmailIntegrationProvider>();
         services.AddScoped<IEmailIntegrationProviderResolver, EmailIntegrationProviderResolver>();
         services.AddScoped<IEmailProviderService, ConnectedEmailProviderService>();
+        services.AddScoped<IPlatformEmailSender>(provider =>
+        {
+            var settings = provider.GetRequiredService<IOptions<SignupEmailSettings>>().Value;
+            return string.Equals(settings.Provider, "Smtp", StringComparison.OrdinalIgnoreCase)
+                ? provider.GetRequiredService<SmtpPlatformEmailSender>()
+                : provider.GetRequiredService<LogOnlyPlatformEmailSender>();
+        });
+        services.AddScoped<LogOnlyPlatformEmailSender>();
+        services.AddScoped<SmtpPlatformEmailSender>();
         services.AddHostedService<EmailIntegrationSyncWorker>();
+        services.AddHostedService<EmailAutomationWorker>();
 
         return services;
     }

@@ -5,6 +5,7 @@ namespace AI.Forged.TourOps.Domain.Entities;
 public class EmailProviderConnection
 {
     public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
     public string OwnerUserId { get; set; } = string.Empty;
     public string ConnectionName { get; set; } = string.Empty;
     public EmailIntegrationProviderType ProviderType { get; set; }

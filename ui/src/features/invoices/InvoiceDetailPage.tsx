@@ -140,7 +140,7 @@ export const InvoiceDetailPage = () => {
       <Card title="Invoice Review">
         <p className="text-sm text-rose-600">{invoiceQuery.isError ? (invoiceQuery.error as Error).message : 'Invoice not found.'}</p>
         <div className="mt-4">
-          <Button type="button" className="bg-slate-200 text-slate-800 hover:bg-slate-300" onClick={() => navigate('/invoices')}>
+          <Button type="button" className="bg-slate-200 text-slate-800 hover:bg-slate-300" onClick={() => navigate('/app/invoices')}>
             Back to invoices
           </Button>
         </div>

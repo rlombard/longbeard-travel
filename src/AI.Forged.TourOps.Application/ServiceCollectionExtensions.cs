@@ -3,10 +3,12 @@ using AI.Forged.TourOps.Application.Interfaces.Ai;
 using AI.Forged.TourOps.Application.Interfaces.Email;
 using AI.Forged.TourOps.Application.Interfaces.Operations;
 using AI.Forged.TourOps.Application.Interfaces.Tasks;
+using AI.Forged.TourOps.Application.Interfaces.Platform;
 using AI.Forged.TourOps.Application.Services;
 using AI.Forged.TourOps.Application.Services.Ai;
 using AI.Forged.TourOps.Application.Services.Email;
 using AI.Forged.TourOps.Application.Services.Operations;
+using AI.Forged.TourOps.Application.Services.Platform;
 using AI.Forged.TourOps.Application.Services.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -33,6 +35,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBookingTaskSuggestionService, BookingTaskSuggestionService>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<IEmailIntegrationService, EmailIntegrationService>();
+        services.AddScoped<IEmailAutomationService, EmailAutomationService>();
         services.AddScoped<IEmailAiService, EmailAiService>();
         services.AddScoped<IEmailAnalysisService>(provider => provider.GetRequiredService<IEmailAiService>() as IEmailAnalysisService
             ?? throw new InvalidOperationException("Email AI service registration is invalid."));
@@ -40,6 +43,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IOperationalDecisionSupportService, OperationalDecisionSupportService>();
         services.AddScoped<IHumanApprovalService, HumanApprovalService>();
         services.AddScoped<IIngestionService, IngestionService>();
+        services.AddScoped<ILicensePolicyService, LicensePolicyService>();
+        services.AddScoped<IUsageMeteringService, UsageMeteringService>();
+        services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<ITenantConfigurationService, TenantConfigurationService>();
+        services.AddScoped<ITenantPlatformService, TenantPlatformService>();
+        services.AddScoped<ITenantAdminService, TenantAdminService>();
+        services.AddScoped<ISessionBootstrapService, SessionBootstrapService>();
+        services.AddScoped<ISignupOnboardingService, SignupOnboardingService>();
 
         return services;
     }

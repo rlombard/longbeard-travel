@@ -1,11 +1,24 @@
+using System.Linq.Expressions;
+using AI.Forged.TourOps.Application.Interfaces.Platform;
 using AI.Forged.TourOps.Domain.Entities;
 using AI.Forged.TourOps.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace AI.Forged.TourOps.Infrastructure.Data;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+public class AppDbContext : DbContext
 {
+    private const string TenantIdPropertyName = "TenantId";
+    private const string TenantScopedAnnotationName = "TourOps:TenantScoped";
+    private readonly ITenantExecutionContextAccessor tenantExecutionContextAccessor;
+
+    public AppDbContext(
+        DbContextOptions<AppDbContext> options,
+        ITenantExecutionContextAccessor tenantExecutionContextAccessor) : base(options)
+    {
+        this.tenantExecutionContextAccessor = tenantExecutionContextAccessor;
+    }
+
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<CustomerKycProfile> CustomerKycProfiles => Set<CustomerKycProfile>();
@@ -42,6 +55,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<EmailProviderMessageLink> EmailProviderMessageLinks => Set<EmailProviderMessageLink>();
     public DbSet<LlmAuditLog> LlmAuditLogs => Set<LlmAuditLog>();
     public DbSet<HumanApprovalRequest> HumanApprovalRequests => Set<HumanApprovalRequest>();
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<LicensePlan> LicensePlans => Set<LicensePlan>();
+    public DbSet<TenantLicense> TenantLicenses => Set<TenantLicense>();
+    public DbSet<UsageRecord> UsageRecords => Set<UsageRecord>();
+    public DbSet<MonetizationTransaction> MonetizationTransactions => Set<MonetizationTransaction>();
+    public DbSet<TenantOnboardingState> TenantOnboardingStates => Set<TenantOnboardingState>();
+    public DbSet<TenantConfigEntry> TenantConfigEntries => Set<TenantConfigEntry>();
+    public DbSet<TenantIdentityMapping> TenantIdentityMappings => Set<TenantIdentityMapping>();
+    public DbSet<TenantUserMembership> TenantUserMemberships => Set<TenantUserMembership>();
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+    public DbSet<SignupSession> SignupSessions => Set<SignupSession>();
+    public DbSet<SignupEmailVerification> SignupEmailVerifications => Set<SignupEmailVerification>();
+    public DbSet<SignupBillingIntent> SignupBillingIntents => Set<SignupBillingIntent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,6 +93,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.HasPostgresEnum<CustomerBudgetBand>();
         modelBuilder.HasPostgresEnum<TravelPace>();
         modelBuilder.HasPostgresEnum<TravelValueLeaning>();
+        modelBuilder.HasPostgresEnum<DeploymentMode>();
+        modelBuilder.HasPostgresEnum<TenantStatus>();
+        modelBuilder.HasPostgresEnum<LicenseStatus>();
+        modelBuilder.HasPostgresEnum<BillingMode>();
+        modelBuilder.HasPostgresEnum<IdentityIsolationMode>();
+        modelBuilder.HasPostgresEnum<IdentityProvisioningStatus>();
+        modelBuilder.HasPostgresEnum<OnboardingStatus>();
+        modelBuilder.HasPostgresEnum<TenantUserRole>();
+        modelBuilder.HasPostgresEnum<TenantUserStatus>();
+        modelBuilder.HasPostgresEnum<MonetizationTransactionType>();
+        modelBuilder.HasPostgresEnum<MonetizationTransactionStatus>();
+        modelBuilder.HasPostgresEnum<LicenseSignupKind>();
+        modelBuilder.HasPostgresEnum<SignupSessionStatus>();
+        modelBuilder.HasPostgresEnum<SignupBillingStatus>();
 
         modelBuilder.Entity<Supplier>(entity =>
         {
@@ -728,6 +768,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             entity.ToTable("EmailProviderConnections");
             entity.HasKey(x => x.Id);
+            entity.Property(x => x.TenantId).IsRequired();
             entity.Property(x => x.OwnerUserId).HasMaxLength(256).IsRequired();
             entity.Property(x => x.ConnectionName).HasMaxLength(200).IsRequired();
             entity.Property(x => x.ProviderType).HasConversion<string>().HasMaxLength(64).IsRequired();
@@ -745,9 +786,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(x => x.WebhookSubscriptionId).HasMaxLength(256);
             entity.Property(x => x.CreatedAt).IsRequired();
             entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasIndex(x => x.TenantId);
             entity.HasIndex(x => x.OwnerUserId);
-            entity.HasIndex(x => new { x.OwnerUserId, x.IsDefaultConnection });
-            entity.HasIndex(x => new { x.OwnerUserId, x.MailboxAddress });
+            entity.HasIndex(x => new { x.TenantId, x.OwnerUserId, x.IsDefaultConnection });
+            entity.HasIndex(x => new { x.TenantId, x.OwnerUserId, x.MailboxAddress });
             entity.HasIndex(x => new { x.Status, x.NextSyncAt });
             entity.HasIndex(x => x.OAuthState);
         });
@@ -810,5 +852,371 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasIndex(x => new { x.EntityType, x.EntityId });
             entity.HasIndex(x => x.Status);
         });
+
+        modelBuilder.Entity<Tenant>(entity =>
+        {
+            entity.ToTable("Tenants");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Slug).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.LegalName).HasMaxLength(256);
+            entity.Property(x => x.BillingEmail).HasMaxLength(256);
+            entity.Property(x => x.DefaultCurrency).HasMaxLength(8).IsRequired();
+            entity.Property(x => x.TimeZone).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Notes).HasMaxLength(4000);
+            entity.HasIndex(x => x.Slug).IsUnique();
+            entity.HasIndex(x => x.IsStandaloneTenant);
+        });
+
+        modelBuilder.Entity<LicensePlan>(entity =>
+        {
+            entity.ToTable("LicensePlans");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Code).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.Property(x => x.SignupKind).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Currency).HasMaxLength(8).IsRequired();
+            entity.Property(x => x.MonthlyPrice).HasPrecision(18, 2);
+            entity.Property(x => x.IncludedFeaturesJson).HasMaxLength(8000).IsRequired();
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.HasIndex(x => new { x.IsPublicSignupEnabled, x.SignupSortOrder });
+        });
+
+        modelBuilder.Entity<TenantLicense>(entity =>
+        {
+            entity.ToTable("TenantLicenses");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.BillingMode).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.FeatureOverridesJson).HasMaxLength(8000).IsRequired();
+            entity.Property(x => x.BillingCustomerReference).HasMaxLength(256);
+            entity.Property(x => x.SubscriptionReference).HasMaxLength(256);
+            entity.Property(x => x.Notes).HasMaxLength(4000);
+            entity.HasIndex(x => x.TenantId).IsUnique();
+            entity.HasOne(x => x.Tenant)
+                .WithOne(x => x.License)
+                .HasForeignKey<TenantLicense>(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.LicensePlan)
+                .WithMany(x => x.TenantLicenses)
+                .HasForeignKey(x => x.LicensePlanId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<UsageRecord>(entity =>
+        {
+            entity.ToTable("UsageRecords");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Category).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.MetricKey).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Quantity).HasPrecision(18, 4);
+            entity.Property(x => x.Unit).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Source).HasMaxLength(128);
+            entity.Property(x => x.ReferenceEntityType).HasMaxLength(128);
+            entity.Property(x => x.MetadataJson).HasMaxLength(8000);
+            entity.HasIndex(x => new { x.TenantId, x.MetricKey, x.OccurredAt });
+            entity.HasOne(x => x.Tenant)
+                .WithMany(x => x.UsageRecords)
+                .HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MonetizationTransaction>(entity =>
+        {
+            entity.ToTable("MonetizationTransactions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.TransactionType).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
+            entity.Property(x => x.Currency).HasMaxLength(8).IsRequired();
+            entity.Property(x => x.ExternalReference).HasMaxLength(256);
+            entity.Property(x => x.MetadataJson).HasMaxLength(8000);
+            entity.HasIndex(x => x.TenantId);
+            entity.HasIndex(x => x.CreatedAt);
+            entity.HasOne(x => x.Tenant)
+                .WithMany(x => x.MonetizationTransactions)
+                .HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.UsageRecord)
+                .WithMany(x => x.MonetizationTransactions)
+                .HasForeignKey(x => x.UsageRecordId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<TenantOnboardingState>(entity =>
+        {
+            entity.ToTable("TenantOnboardingStates");
+            entity.HasKey(x => x.TenantId);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.CurrentStep).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.CompletedStepsJson).HasMaxLength(4000).IsRequired();
+            entity.Property(x => x.OrganizationProfileJson).HasMaxLength(8000);
+            entity.Property(x => x.AdminBootstrapJson).HasMaxLength(8000);
+            entity.Property(x => x.EmailSetupJson).HasMaxLength(8000);
+            entity.Property(x => x.BillingSetupJson).HasMaxLength(8000);
+            entity.Property(x => x.LastError).HasMaxLength(2000);
+            entity.HasOne(x => x.Tenant)
+                .WithOne(x => x.Onboarding)
+                .HasForeignKey<TenantOnboardingState>(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TenantConfigEntry>(entity =>
+        {
+            entity.ToTable("TenantConfigEntries");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ConfigDomain).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.ConfigKey).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.JsonValue).HasMaxLength(16000).IsRequired();
+            entity.Property(x => x.UpdatedByUserId).HasMaxLength(256).IsRequired();
+            entity.HasIndex(x => new { x.TenantId, x.ConfigDomain, x.ConfigKey }).IsUnique();
+            entity.HasOne(x => x.Tenant)
+                .WithMany(x => x.ConfigEntries)
+                .HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TenantIdentityMapping>(entity =>
+        {
+            entity.ToTable("TenantIdentityMappings");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.IsolationMode).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.ProvisioningStatus).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.RealmName).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.ClientId).HasMaxLength(128);
+            entity.Property(x => x.IssuerUrl).HasMaxLength(2000);
+            entity.Property(x => x.MetadataJson).HasMaxLength(8000);
+            entity.Property(x => x.LastError).HasMaxLength(2000);
+            entity.HasIndex(x => new { x.TenantId, x.RealmName }).IsUnique();
+            entity.HasOne(x => x.Tenant)
+                .WithMany(x => x.IdentityMappings)
+                .HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TenantUserMembership>(entity =>
+        {
+            entity.ToTable("TenantUserMemberships");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.UserId).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.Email).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.Role).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.HasIndex(x => new { x.TenantId, x.UserId }).IsUnique();
+            entity.HasIndex(x => new { x.UserId, x.Status });
+            entity.HasOne(x => x.Tenant)
+                .WithMany(x => x.UserMemberships)
+                .HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AuditEvent>(entity =>
+        {
+            entity.ToTable("AuditEvents");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ScopeType).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Action).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Result).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ActorUserId).HasMaxLength(256);
+            entity.Property(x => x.ActorDisplayName).HasMaxLength(256);
+            entity.Property(x => x.TargetEntityType).HasMaxLength(128);
+            entity.Property(x => x.IpAddress).HasMaxLength(128);
+            entity.Property(x => x.MetadataJson).HasMaxLength(8000);
+            entity.HasIndex(x => new { x.TenantId, x.CreatedAt });
+            entity.HasIndex(x => x.Action);
+            entity.HasOne(x => x.Tenant)
+                .WithMany(x => x.AuditEvents)
+                .HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<SignupSession>(entity =>
+        {
+            entity.ToTable("SignupSessions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.AccessTokenHash).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.CurrentStep).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Email).HasMaxLength(256);
+            entity.Property(x => x.NormalizedEmail).HasMaxLength(256);
+            entity.Property(x => x.SelectedPlanCode).HasMaxLength(128);
+            entity.Property(x => x.BillingStatus).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.OrganizationName).HasMaxLength(200);
+            entity.Property(x => x.OrganizationLegalName).HasMaxLength(256);
+            entity.Property(x => x.TenantSlug).HasMaxLength(128);
+            entity.Property(x => x.BillingEmail).HasMaxLength(256);
+            entity.Property(x => x.DefaultCurrency).HasMaxLength(8);
+            entity.Property(x => x.TimeZone).HasMaxLength(128);
+            entity.Property(x => x.OrganizationProfileJson).HasMaxLength(8000);
+            entity.Property(x => x.AdminEmail).HasMaxLength(256);
+            entity.Property(x => x.AdminFirstName).HasMaxLength(128);
+            entity.Property(x => x.AdminLastName).HasMaxLength(128);
+            entity.Property(x => x.AdminUsername).HasMaxLength(128);
+            entity.Property(x => x.AdminBootstrapJson).HasMaxLength(8000);
+            entity.Property(x => x.ActivationResultJson).HasMaxLength(8000);
+            entity.Property(x => x.LastError).HasMaxLength(2000);
+            entity.HasIndex(x => x.NormalizedEmail);
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.ExpiresAt);
+            entity.HasOne(x => x.SelectedPlan)
+                .WithMany(x => x.SignupSessions)
+                .HasForeignKey(x => x.SelectedPlanId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.Tenant)
+                .WithMany(x => x.SignupSessions)
+                .HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<SignupEmailVerification>(entity =>
+        {
+            entity.ToTable("SignupEmailVerifications");
+            entity.HasKey(x => x.SignupSessionId);
+            entity.Property(x => x.TokenHash).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.LastSentEmail).HasMaxLength(256);
+            entity.Property(x => x.LastAttemptIpAddress).HasMaxLength(128);
+            entity.HasIndex(x => x.ExpiresAt);
+            entity.HasOne(x => x.SignupSession)
+                .WithOne(x => x.EmailVerification)
+                .HasForeignKey<SignupEmailVerification>(x => x.SignupSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SignupBillingIntent>(entity =>
+        {
+            entity.ToTable("SignupBillingIntents");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.BillingMode).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
+            entity.Property(x => x.Currency).HasMaxLength(8).IsRequired();
+            entity.Property(x => x.ProviderName).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ExternalReference).HasMaxLength(256);
+            entity.Property(x => x.CheckoutUrl).HasMaxLength(2000);
+            entity.Property(x => x.MetadataJson).HasMaxLength(8000);
+            entity.HasIndex(x => x.SignupSessionId).IsUnique();
+            entity.HasIndex(x => x.Status);
+            entity.HasOne(x => x.SignupSession)
+                .WithOne(x => x.BillingIntent)
+                .HasForeignKey<SignupBillingIntent>(x => x.SignupSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.LicensePlan)
+                .WithMany(x => x.SignupBillingIntents)
+                .HasForeignKey(x => x.LicensePlanId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        ConfigureTenantScopedEntities(modelBuilder);
+    }
+
+    public override int SaveChanges()
+    {
+        ApplyTenantScope();
+        return base.SaveChanges();
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        ApplyTenantScope();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void ConfigureTenantScopedEntities(ModelBuilder modelBuilder)
+    {
+        ConfigureTenantScopedEntity<Supplier>(modelBuilder);
+        ConfigureTenantScopedEntity<Customer>(modelBuilder);
+        ConfigureTenantScopedEntity<CustomerKycProfile>(modelBuilder);
+        ConfigureTenantScopedEntity<CustomerPreferenceProfile>(modelBuilder);
+        ConfigureTenantScopedEntity<CustomerAuditLog>(modelBuilder);
+        ConfigureTenantScopedEntity<Product>(modelBuilder);
+        ConfigureTenantScopedEntity<ProductContact>(modelBuilder);
+        ConfigureTenantScopedEntity<ProductExtra>(modelBuilder);
+        ConfigureTenantScopedEntity<ProductRoom>(modelBuilder);
+        ConfigureTenantScopedEntity<ProductRateType>(modelBuilder);
+        ConfigureTenantScopedEntity<ProductRateBasis>(modelBuilder);
+        ConfigureTenantScopedEntity<ProductMealBasis>(modelBuilder);
+        ConfigureTenantScopedEntity<ProductValidityPeriod>(modelBuilder);
+        ConfigureTenantScopedEntity<Rate>(modelBuilder);
+        ConfigureTenantScopedEntity<Itinerary>(modelBuilder);
+        ConfigureTenantScopedEntity<ItineraryItem>(modelBuilder);
+        ConfigureTenantScopedEntity<ItineraryDraft>(modelBuilder);
+        ConfigureTenantScopedEntity<ItineraryDraftItem>(modelBuilder);
+        ConfigureTenantScopedEntity<Quote>(modelBuilder);
+        ConfigureTenantScopedEntity<QuoteLineItem>(modelBuilder);
+        ConfigureTenantScopedEntity<Booking>(modelBuilder);
+        ConfigureTenantScopedEntity<BookingItem>(modelBuilder);
+        ConfigureTenantScopedEntity<BookingTraveller>(modelBuilder);
+        ConfigureTenantScopedEntity<Invoice>(modelBuilder);
+        ConfigureTenantScopedEntity<InvoiceLineItem>(modelBuilder);
+        ConfigureTenantScopedEntity<InvoiceAttachment>(modelBuilder);
+        ConfigureTenantScopedEntity<PaymentRecord>(modelBuilder);
+        ConfigureTenantScopedEntity<OperationalTask>(modelBuilder);
+        ConfigureTenantScopedEntity<OperationalTaskSuggestion>(modelBuilder);
+        ConfigureTenantScopedEntity<EmailThread>(modelBuilder);
+        ConfigureTenantScopedEntity<EmailMessage>(modelBuilder);
+        ConfigureTenantScopedEntity<EmailDraft>(modelBuilder);
+        ConfigureTenantScopedEntity<EmailProviderConnection>(modelBuilder);
+        ConfigureTenantScopedEntity<EmailProviderMessageLink>(modelBuilder);
+        ConfigureTenantScopedEntity<LlmAuditLog>(modelBuilder);
+        ConfigureTenantScopedEntity<HumanApprovalRequest>(modelBuilder);
+    }
+
+    private void ConfigureTenantScopedEntity<TEntity>(ModelBuilder modelBuilder)
+        where TEntity : class
+    {
+        var entity = modelBuilder.Entity<TEntity>();
+        entity.HasAnnotation(TenantScopedAnnotationName, true);
+        entity.Property<Guid>(TenantIdPropertyName);
+        entity.HasIndex(TenantIdPropertyName);
+        entity.HasQueryFilter(BuildTenantFilter<TEntity>());
+    }
+
+    private Expression<Func<TEntity, bool>> BuildTenantFilter<TEntity>()
+        where TEntity : class =>
+        entity => tenantExecutionContextAccessor.IsPlatformScope
+            || (tenantExecutionContextAccessor.CurrentTenantId.HasValue
+                && EF.Property<Guid>(entity, TenantIdPropertyName) == tenantExecutionContextAccessor.CurrentTenantId.Value);
+
+    private void ApplyTenantScope()
+    {
+        foreach (var entry in ChangeTracker.Entries().Where(x =>
+                     x.Metadata.FindAnnotation(TenantScopedAnnotationName)?.Value as bool? == true
+                     &&
+                     x.Metadata.FindProperty(TenantIdPropertyName) is not null
+                     && x.State is EntityState.Added or EntityState.Modified))
+        {
+            var property = entry.Property(TenantIdPropertyName);
+            var currentValue = property.CurrentValue is Guid guidValue ? guidValue : Guid.Empty;
+
+            if (entry.State == EntityState.Added)
+            {
+                if (currentValue != Guid.Empty)
+                {
+                    continue;
+                }
+
+                if (!tenantExecutionContextAccessor.CurrentTenantId.HasValue)
+                {
+                    throw new InvalidOperationException("Tenant context is required for writes.");
+                }
+
+                property.CurrentValue = tenantExecutionContextAccessor.CurrentTenantId.Value;
+                continue;
+            }
+
+            if (tenantExecutionContextAccessor.IsPlatformScope || !tenantExecutionContextAccessor.CurrentTenantId.HasValue)
+            {
+                continue;
+            }
+
+            var originalValue = property.OriginalValue is Guid originalGuid ? originalGuid : currentValue;
+            if (originalValue != tenantExecutionContextAccessor.CurrentTenantId.Value)
+            {
+                throw new InvalidOperationException("Cross-tenant write was blocked.");
+            }
+        }
     }
 }

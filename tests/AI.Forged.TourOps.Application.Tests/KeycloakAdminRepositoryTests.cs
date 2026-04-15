@@ -17,7 +17,7 @@ public class KeycloakAdminRepositoryTests
         [
             new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = JsonContent("""{"accessToken":"token-1","expiresIn":300}""")
+                Content = JsonContent("""{"access_token":"token-1","expires_in":300}""")
             },
             new HttpResponseMessage(HttpStatusCode.Created)
             {
@@ -56,7 +56,7 @@ public class KeycloakAdminRepositoryTests
         [
             new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = JsonContent("""{"accessToken":"token-1","expiresIn":300}""")
+                Content = JsonContent("""{"access_token":"token-1","expires_in":300}""")
             },
             new HttpResponseMessage(HttpStatusCode.NoContent),
             new HttpResponseMessage(HttpStatusCode.OK)

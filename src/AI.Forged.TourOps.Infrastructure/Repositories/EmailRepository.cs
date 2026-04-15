@@ -54,6 +54,15 @@ public class EmailRepository(AppDbContext dbContext) : IEmailRepository
             .OrderByDescending(x => x.LastMessageAt ?? x.CreatedAt)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<EmailThread>> GetThreadsPendingAutomationAsync(int take, CancellationToken cancellationToken = default) =>
+        await BuildThreadQuery()
+            .Where(x => x.Messages.Any(m =>
+                m.Direction == Domain.Enums.EmailDirection.Inbound
+                && (m.AiSummary == null || m.AiClassification == null)))
+            .OrderByDescending(x => x.LastMessageAt ?? x.CreatedAt)
+            .Take(Math.Clamp(take, 1, 200))
+            .ToListAsync(cancellationToken);
+
     public async Task<EmailMessage?> GetMessageByIdAsync(Guid messageId, CancellationToken cancellationToken = default) =>
         await dbContext.EmailMessages
             .Include(x => x.Thread)

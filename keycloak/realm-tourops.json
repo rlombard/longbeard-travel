@@ -51,6 +51,38 @@
       "realmRoles": ["admin"]
     },
     {
+      "username": "platform-admin",
+      "firstName": "Platform",
+      "lastName": "Admin",
+      "email": "platform.admin@tourops.local",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "platform-admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "platform-user",
+      "firstName": "Platform",
+      "lastName": "User",
+      "email": "platform.user@tourops.local",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "platform-user",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["operator"]
+    },
+    {
       "username": "service-account-tourops-admin-api",
       "enabled": true,
       "serviceAccountClientId": "tourops-admin-api",

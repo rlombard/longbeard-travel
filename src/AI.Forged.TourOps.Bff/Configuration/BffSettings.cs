@@ -21,9 +21,12 @@ public sealed class BffSettings
         "email-threads",
         "invoices",
         "itineraries",
+        "platform",
         "products",
         "quotes",
         "rates",
+        "session",
+        "signup",
         "suppliers",
         "task-suggestions",
         "tasks"

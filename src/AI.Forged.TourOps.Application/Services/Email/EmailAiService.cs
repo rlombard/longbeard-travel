@@ -3,7 +3,9 @@ using AI.Forged.TourOps.Application.Interfaces;
 using AI.Forged.TourOps.Application.Interfaces.Ai;
 using AI.Forged.TourOps.Application.Interfaces.Email;
 using AI.Forged.TourOps.Application.Interfaces.Operations;
+using AI.Forged.TourOps.Application.Interfaces.Platform;
 using AI.Forged.TourOps.Application.Models.Ai;
+using AI.Forged.TourOps.Application.Models.Email;
 using AI.Forged.TourOps.Application.Models.Operations;
 using AI.Forged.TourOps.Domain.Entities;
 using AI.Forged.TourOps.Domain.Enums;
@@ -15,7 +17,9 @@ public class EmailAiService(
     ITaskSuggestionRepository taskSuggestionRepository,
     IAiForgedService aiForgedService,
     IPdfService pdfService,
-    IHumanApprovalService humanApprovalService) : IEmailAnalysisService, IEmailAiService
+    IHumanApprovalService humanApprovalService,
+    ILicensePolicyService? licensePolicyService = null,
+    IUsageMeteringService? usageMeteringService = null) : IEmailAnalysisService, IEmailAiService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -24,9 +28,67 @@ public class EmailAiService(
 
     public async Task<EmailSignalExtraction> AnalyzeThreadAsync(Guid emailThreadId, CancellationToken cancellationToken = default)
     {
+        if (licensePolicyService is not null)
+        {
+            await licensePolicyService.AssertAllowedAsync("ai.email", cancellationToken);
+        }
+
         var analysis = await AnalyzeThreadInternalAsync(emailThreadId, cancellationToken);
         await PersistAnalysisAsync(analysis.LatestMessage, analysis.Extraction, cancellationToken);
+        if (usageMeteringService is not null)
+        {
+            await usageMeteringService.RecordAsync(new AI.Forged.TourOps.Application.Models.Platform.MeterUsageModel
+            {
+                Category = "AI",
+                MetricKey = "ai.jobs.monthly",
+                Quantity = 1,
+                Unit = "job",
+                Source = "EmailAiService",
+                ReferenceEntityType = nameof(EmailThread),
+                ReferenceEntityId = emailThreadId
+            }, cancellationToken);
+        }
+
         return analysis.Extraction;
+    }
+
+    public async Task<EmailThreadAutomationResultModel> ProcessThreadAutomationAsync(Guid emailThreadId, CancellationToken cancellationToken = default)
+    {
+        if (licensePolicyService is not null)
+        {
+            await licensePolicyService.AssertAllowedAsync("ai.email", cancellationToken);
+        }
+
+        var analysis = await AnalyzeThreadInternalAsync(emailThreadId, cancellationToken);
+        await PersistAnalysisAsync(analysis.LatestMessage, analysis.Extraction, cancellationToken);
+        var taskSuggestionsCreated = 0;
+
+        if (analysis.Thread.BookingId.HasValue || analysis.Thread.BookingItem?.BookingId is not null)
+        {
+            var created = await PersistTaskSuggestionsAsync(analysis, cancellationToken);
+            taskSuggestionsCreated = created.Count;
+        }
+
+        if (usageMeteringService is not null)
+        {
+            await usageMeteringService.RecordAsync(new AI.Forged.TourOps.Application.Models.Platform.MeterUsageModel
+            {
+                Category = "AI",
+                MetricKey = "ai.jobs.monthly",
+                Quantity = 1,
+                Unit = "job",
+                Source = "EmailAiService",
+                ReferenceEntityType = nameof(EmailThread),
+                ReferenceEntityId = emailThreadId
+            }, cancellationToken);
+        }
+
+        return new EmailThreadAutomationResultModel
+        {
+            EmailThreadId = emailThreadId,
+            AnalysisUpdated = true,
+            TaskSuggestionsCreated = taskSuggestionsCreated
+        };
     }
 
     public Task<EmailSignalExtraction> SummarizeEmailAsync(EmailThread thread, EmailMessage message, CancellationToken cancellationToken = default) =>
@@ -45,7 +107,11 @@ public class EmailAiService(
     {
         var analysis = await AnalyzeThreadInternalAsync(emailThreadId, cancellationToken);
         await PersistAnalysisAsync(analysis.LatestMessage, analysis.Extraction, cancellationToken);
+        return await PersistTaskSuggestionsAsync(analysis, cancellationToken);
+    }
 
+    private async Task<IReadOnlyList<SuggestedTaskCandidate>> PersistTaskSuggestionsAsync(ThreadAiAnalysis analysis, CancellationToken cancellationToken)
+    {
         var bookingId = analysis.Thread.BookingId ?? analysis.Thread.BookingItem?.BookingId
             ?? throw new InvalidOperationException("Email thread is not linked to a booking.");
 

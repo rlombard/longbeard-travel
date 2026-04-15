@@ -29,6 +29,7 @@ public sealed class EmailIntegrationRepository(AppDbContext dbContext) : IEmailI
 
     public async Task<IReadOnlyList<EmailProviderConnection>> GetDueForSyncAsync(DateTime utcNow, CancellationToken cancellationToken = default) =>
         await dbContext.EmailProviderConnections
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(x => x.AllowSync
                 && x.Status == EmailIntegrationStatus.Active
@@ -40,6 +41,7 @@ public sealed class EmailIntegrationRepository(AppDbContext dbContext) : IEmailI
 
     public async Task<EmailProviderConnection?> GetByOAuthStateAsync(string oauthState, CancellationToken cancellationToken = default) =>
         await dbContext.EmailProviderConnections
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.OAuthState == oauthState, cancellationToken);
 
     public async Task<EmailProviderConnection?> GetDefaultSendConnectionAsync(string ownerUserId, CancellationToken cancellationToken = default) =>
@@ -59,6 +61,7 @@ public sealed class EmailIntegrationRepository(AppDbContext dbContext) : IEmailI
         }
 
         return await dbContext.EmailProviderConnections
+            .IgnoreQueryFilters()
             .Where(x => x.WebhookSubscriptionId != null && ids.Contains(x.WebhookSubscriptionId))
             .ToListAsync(cancellationToken);
     }

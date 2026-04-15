@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AI.Forged.TourOps.Application.Interfaces;
 using AI.Forged.TourOps.Application.Interfaces.Ai;
+using AI.Forged.TourOps.Application.Interfaces.Platform;
 using AI.Forged.TourOps.Application.Interfaces.Tasks;
 using AI.Forged.TourOps.Domain.Entities;
 using AI.Forged.TourOps.Domain.Enums;
@@ -12,7 +13,9 @@ public class BookingTaskSuggestionService(
     ITaskSuggestionRepository taskSuggestionRepository,
     ITaskService taskService,
     ICurrentUserContext currentUserContext,
-    IBookingAiService bookingAiService) : IBookingTaskSuggestionService
+    IBookingAiService bookingAiService,
+    ILicensePolicyService? licensePolicyService = null,
+    IUsageMeteringService? usageMeteringService = null) : IBookingTaskSuggestionService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -21,6 +24,11 @@ public class BookingTaskSuggestionService(
 
     public async Task<IReadOnlyList<OperationalTaskSuggestion>> GenerateSuggestedTasksAsync(Guid bookingId, CancellationToken cancellationToken = default)
     {
+        if (licensePolicyService is not null)
+        {
+            await licensePolicyService.AssertAllowedAsync("ai.task-suggestions", cancellationToken);
+        }
+
         var existingSuggestions = await taskSuggestionRepository.GetByBookingAsync(bookingId, cancellationToken);
         var existingPendingBookingSuggestions = existingSuggestions
             .Where(x => x.State == TaskSuggestionState.PendingReview && x.Source == "AiForgedBooking")
@@ -65,6 +73,20 @@ public class BookingTaskSuggestionService(
         }
 
         await taskSuggestionRepository.AddRangeAsync(suggestions, cancellationToken);
+        if (usageMeteringService is not null)
+        {
+            await usageMeteringService.RecordAsync(new AI.Forged.TourOps.Application.Models.Platform.MeterUsageModel
+            {
+                Category = "AI",
+                MetricKey = "ai.jobs.monthly",
+                Quantity = 1,
+                Unit = "job",
+                Source = "BookingTaskSuggestionService",
+                ReferenceEntityType = nameof(Booking),
+                ReferenceEntityId = bookingId
+            }, cancellationToken);
+        }
+
         return await taskSuggestionRepository.GetByBookingAsync(bookingId, cancellationToken);
     }
 

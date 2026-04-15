@@ -11,6 +11,7 @@ public interface IEmailRepository
     Task<EmailThread?> GetThreadByExternalThreadIdAsync(string externalThreadId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<EmailThread>> GetThreadsAsync(Guid? bookingId = null, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<EmailThread>> GetThreadsByBookingAsync(Guid bookingId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<EmailThread>> GetThreadsPendingAutomationAsync(int take, CancellationToken cancellationToken = default);
     Task<EmailMessage?> GetMessageByIdAsync(Guid messageId, CancellationToken cancellationToken = default);
     Task<EmailDraft?> GetDraftByIdAsync(Guid draftId, CancellationToken cancellationToken = default);
     Task UpdateThreadAsync(EmailThread thread, CancellationToken cancellationToken = default);

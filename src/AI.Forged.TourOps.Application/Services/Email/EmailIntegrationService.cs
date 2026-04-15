@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AI.Forged.TourOps.Application.Interfaces;
 using AI.Forged.TourOps.Application.Interfaces.Email;
+using AI.Forged.TourOps.Application.Interfaces.Platform;
 using AI.Forged.TourOps.Application.Models.EmailIntegrations;
 using AI.Forged.TourOps.Domain.Entities;
 using AI.Forged.TourOps.Domain.Enums;
@@ -12,7 +13,11 @@ public sealed class EmailIntegrationService(
     IEmailRepository emailRepository,
     ICurrentUserContext currentUserContext,
     IEmailConnectionSecretProtector secretProtector,
-    IEmailIntegrationProviderResolver providerResolver) : IEmailIntegrationService
+    IEmailIntegrationProviderResolver providerResolver,
+    ILicensePolicyService? licensePolicyService = null,
+    IUsageMeteringService? usageMeteringService = null,
+    IAuditService? auditService = null,
+    ITenantExecutionContextAccessor? tenantExecutionContextAccessor = null) : IEmailIntegrationService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -31,6 +36,11 @@ public sealed class EmailIntegrationService(
 
     public async Task<EmailProviderConnectionModel> CreateConnectionAsync(CreateEmailProviderConnectionModel model, CancellationToken cancellationToken = default)
     {
+        if (licensePolicyService is not null)
+        {
+            await licensePolicyService.AssertAllowedAsync("email.integrations.manage", cancellationToken);
+        }
+
         ValidateManualCreateModel(model);
 
         var connection = new EmailProviderConnection
@@ -59,11 +69,28 @@ public sealed class EmailIntegrationService(
         };
 
         await emailIntegrationRepository.AddConnectionAsync(connection, cancellationToken);
+        if (auditService is not null)
+        {
+            await auditService.WriteAsync(new AI.Forged.TourOps.Application.Models.Platform.AuditEventCreateModel
+            {
+                ScopeType = "EmailIntegration",
+                Action = "EmailConnectionCreated",
+                Result = "Success",
+                TargetEntityType = nameof(EmailProviderConnection),
+                TargetEntityId = connection.Id
+            }, cancellationToken);
+        }
+
         return ToModel(connection);
     }
 
     public async Task<EmailOAuthStartResultModel> StartOAuthAsync(StartEmailProviderOAuthModel model, CancellationToken cancellationToken = default)
     {
+        if (licensePolicyService is not null)
+        {
+            await licensePolicyService.AssertAllowedAsync("email.integrations.manage", cancellationToken);
+        }
+
         ValidateOAuthStartModel(model);
 
         var ownerUserId = currentUserContext.GetRequiredUserId();
@@ -90,6 +117,17 @@ public sealed class EmailIntegrationService(
         };
 
         await emailIntegrationRepository.AddConnectionAsync(connection, cancellationToken);
+        if (auditService is not null)
+        {
+            await auditService.WriteAsync(new AI.Forged.TourOps.Application.Models.Platform.AuditEventCreateModel
+            {
+                ScopeType = "EmailIntegration",
+                Action = "EmailOAuthStarted",
+                Result = "Pending",
+                TargetEntityType = nameof(EmailProviderConnection),
+                TargetEntityId = connection.Id
+            }, cancellationToken);
+        }
 
         var provider = GetOAuthProvider(model.ProviderType);
         return await provider.StartAuthorizationAsync(connection, ReadSettings(connection), cancellationToken);
@@ -104,6 +142,9 @@ public sealed class EmailIntegrationService(
 
         var connection = await emailIntegrationRepository.GetByOAuthStateAsync(model.State, cancellationToken)
             ?? throw new InvalidOperationException("OAuth state could not be resolved.");
+        using var tenantScope = tenantExecutionContextAccessor is not null && connection.TenantId != Guid.Empty
+            ? tenantExecutionContextAccessor.BeginTenantScope(connection.TenantId)
+            : null;
 
         if (connection.ProviderType != model.ProviderType)
         {
@@ -136,6 +177,17 @@ public sealed class EmailIntegrationService(
         connection.UpdatedAt = DateTime.UtcNow;
 
         await emailIntegrationRepository.UpdateConnectionAsync(connection, cancellationToken);
+        if (auditService is not null)
+        {
+            await auditService.WriteAsync(new AI.Forged.TourOps.Application.Models.Platform.AuditEventCreateModel
+            {
+                ScopeType = "EmailIntegration",
+                Action = "EmailOAuthCompleted",
+                Result = "Success",
+                TargetEntityType = nameof(EmailProviderConnection),
+                TargetEntityId = connection.Id
+            }, cancellationToken);
+        }
 
         return new EmailOAuthCallbackResultModel
         {
@@ -163,13 +215,59 @@ public sealed class EmailIntegrationService(
     public async Task<EmailSyncResultModel> SyncConnectionAsync(Guid connectionId, CancellationToken cancellationToken = default)
     {
         var connection = await GetOwnedConnectionAsync(connectionId, cancellationToken) ?? throw new InvalidOperationException("Email provider connection not found.");
-        return await SyncConnectionInternalAsync(connection, cancellationToken);
+        using var tenantScope = tenantExecutionContextAccessor is not null && connection.TenantId != Guid.Empty
+            ? tenantExecutionContextAccessor.BeginTenantScope(connection.TenantId)
+            : null;
+        if (licensePolicyService is not null)
+        {
+            await licensePolicyService.AssertAllowedAsync("email.sync", cancellationToken);
+        }
+
+        var result = await SyncConnectionInternalAsync(connection, cancellationToken);
+        if (usageMeteringService is not null)
+        {
+            await usageMeteringService.RecordAsync(new AI.Forged.TourOps.Application.Models.Platform.MeterUsageModel
+            {
+                Category = "Email",
+                MetricKey = "email.sync.monthly",
+                Quantity = 1,
+                Unit = "sync",
+                Source = "EmailIntegrationService",
+                ReferenceEntityType = nameof(EmailProviderConnection),
+                ReferenceEntityId = connection.Id
+            }, cancellationToken);
+        }
+
+        return result;
     }
 
     public async Task<EmailSendResultModel> SendMessageAsync(Guid connectionId, SendConnectedEmailMessageModel model, CancellationToken cancellationToken = default)
     {
         var connection = await GetOwnedConnectionAsync(connectionId, cancellationToken) ?? throw new InvalidOperationException("Email provider connection not found.");
-        return await SendThroughConnectionAsync(connection, model, cancellationToken);
+        using var tenantScope = tenantExecutionContextAccessor is not null && connection.TenantId != Guid.Empty
+            ? tenantExecutionContextAccessor.BeginTenantScope(connection.TenantId)
+            : null;
+        if (licensePolicyService is not null)
+        {
+            await licensePolicyService.AssertAllowedAsync("email.send", cancellationToken);
+        }
+
+        var result = await SendThroughConnectionAsync(connection, model, cancellationToken);
+        if (usageMeteringService is not null)
+        {
+            await usageMeteringService.RecordAsync(new AI.Forged.TourOps.Application.Models.Platform.MeterUsageModel
+            {
+                Category = "Email",
+                MetricKey = "email.sends.monthly",
+                Quantity = 1,
+                Unit = "message",
+                Source = "EmailIntegrationService",
+                ReferenceEntityType = nameof(EmailProviderConnection),
+                ReferenceEntityId = connection.Id
+            }, cancellationToken);
+        }
+
+        return result;
     }
 
     public async Task<DisconnectEmailConnectionResultModel> DisconnectAsync(Guid connectionId, CancellationToken cancellationToken = default)
@@ -187,6 +285,17 @@ public sealed class EmailIntegrationService(
         connection.UpdatedAt = DateTime.UtcNow;
 
         await emailIntegrationRepository.UpdateConnectionAsync(connection, cancellationToken);
+        if (auditService is not null)
+        {
+            await auditService.WriteAsync(new AI.Forged.TourOps.Application.Models.Platform.AuditEventCreateModel
+            {
+                ScopeType = "EmailIntegration",
+                Action = "EmailConnectionDisconnected",
+                Result = "Success",
+                TargetEntityType = nameof(EmailProviderConnection),
+                TargetEntityId = connection.Id
+            }, cancellationToken);
+        }
 
         return new DisconnectEmailConnectionResultModel
         {
@@ -239,6 +348,9 @@ public sealed class EmailIntegrationService(
         {
             try
             {
+                using var tenantScope = tenantExecutionContextAccessor is not null && connection.TenantId != Guid.Empty
+                    ? tenantExecutionContextAccessor.BeginTenantScope(connection.TenantId)
+                    : null;
                 await SyncConnectionInternalAsync(connection, cancellationToken);
                 processed++;
             }
@@ -257,6 +369,14 @@ public sealed class EmailIntegrationService(
         if (connection is null)
         {
             throw new InvalidOperationException("No active default email connection is configured.");
+        }
+
+        using var tenantScope = tenantExecutionContextAccessor is not null && connection.TenantId != Guid.Empty
+            ? tenantExecutionContextAccessor.BeginTenantScope(connection.TenantId)
+            : null;
+        if (licensePolicyService is not null)
+        {
+            await licensePolicyService.AssertAllowedAsync("email.send", cancellationToken);
         }
 
         return await SendThroughConnectionAsync(connection, model, cancellationToken);
